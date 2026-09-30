@@ -1,0 +1,33 @@
+[project]
+name = "ai-learning-rag"
+version = "0.1.0"
+description = "A beginner-friendly project for learning and building a RAG system."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115.0,<1.0.0",
+    "uvicorn[standard]>=0.30.0,<1.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.0.0,<3.0.0",
+    "pytest>=8.3.0,<10.0.0",
+    "ruff>=0.9.0,<1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+filterwarnings = ["error"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "SIM", "UP"]
