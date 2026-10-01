@@ -7,10 +7,11 @@
 - [项目目标与需求](docs/PROJECT_REQUIREMENTS.md)
 - [环境准备指南](docs/ENVIRONMENT_SETUP.md)
 - [学习 01：工程基线](docs/learning/01-engineering-baseline.md)
+- [学习 02：纯文本标准化与切分](docs/learning/02-text-chunking.md)
 
 ## 当前进度
 
-第一个里程碑“工程基线”的最小版本已通过自动验证和人工确认。下一阶段将进入“最小 RAG 闭环”。
+第一个里程碑“工程基线”的最小版本已通过自动验证和人工确认。第二个里程碑“最小 RAG 闭环”正在进行，当前实现纯文本标准化与切分预览。
 
 ## 环境要求
 
@@ -47,6 +48,8 @@ uv run uvicorn ai_learning_rag.main:app --reload
 
 - 健康检查：http://127.0.0.1:8000/health
 - 交互式 API 文档：http://127.0.0.1:8000/docs
+
+在交互式 API 文档中，可以通过 `POST /documents/preview` 观察文本标准化和切分结果；这个预览接口不会持久化数据。
 
 ## 项目结构
 

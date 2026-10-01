@@ -21,6 +21,9 @@
 
 - Assume the user is learning RAG from the beginning. Explain the current stage, the purpose of a command, and the expected result before asking the user to run it.
 - When the user is unsure what to do next, first provide orientation and a small decision framework. Recommend a low-risk next step when needed and explain the reasoning.
+- Own the technical learning roadmap and recommend the next step based on the complete RAG lifecycle. Do not make the beginner responsible for sequencing the project.
+- Treat the user's questions and hypotheses as opportunities to explain and test understanding, not as implicit instructions to redesign the project. Change direction only when evidence reveals a real issue or the user explicitly requests it.
+- Invite the user to participate in focused experiments, predictions, reviews, and meaningful trade-offs while providing an expert recommendation and a safe default.
 
 ## File safety
 
