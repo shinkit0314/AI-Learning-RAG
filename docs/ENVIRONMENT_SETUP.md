@@ -46,6 +46,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1
 
 它不会替换系统 Python，也不会把依赖安装到系统环境。重复执行是安全的：环境已经一致时，uv 只会进行快速检查。
 
+在需要运行本地 Embedding 模型的阶段，改用：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1 -WithLocalEmbedding
+```
+
+这个开关会额外安装 `local-embedding` 可选依赖，其中包括 CUDA 12.6 版本的 PyTorch 和
+Sentence Transformers。GPU 依赖体积较大，因此普通的 API 开发和自动化测试不会默认安装它们。
+
+需要同时运行本地 Embedding 与 OpenAI 生成层时，使用：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1 -WithLocalEmbedding -WithOpenAI
+```
+
+`-WithOpenAI` 只安装官方 Python SDK，不会读取 API Key，也不会自动发出付费请求。
+
 成功时应看到类似输出：
 
 ```text
@@ -71,6 +88,18 @@ uv run pytest
 - 新建出来的 `.venv` 不是旧环境的物理副本，但由于使用同一个 `uv.lock`，Python 依赖版本保持一致。
 
 新对话中的 Codex 应先解释上述步骤，提醒你亲自执行环境命令，并等待你确认结果；除非你明确要求，否则不应自动安装或同步环境。
+
+## 模型文件保存在哪里
+
+本项目把 Hugging Face 模型缓存放在项目目录下的 `.cache/huggingface`，也就是当前项目位于
+`D:\github\AI-Learning-RAG` 时，模型会保存到：
+
+```text
+D:\github\AI-Learning-RAG\.cache\huggingface
+```
+
+模型加载代码会显式使用该目录，而不是依赖 Hugging Face 默认的 C 盘用户缓存。`.cache`
+已经被 `.gitignore` 排除，不会把数 GB 的模型文件提交到 Git。
 
 ## 常用命令
 

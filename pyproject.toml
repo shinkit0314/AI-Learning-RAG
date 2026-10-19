@@ -9,6 +9,15 @@ dependencies = [
     "uvicorn[standard]>=0.30.0,<1.0.0",
 ]
 
+[project.optional-dependencies]
+local-embedding = [
+    "sentence-transformers>=5.1.2,<6.0.0",
+    "torch>=2.7.1,<2.15.0",
+]
+openai-generation = [
+    "openai>=2.0.0,<3.0.0",
+]
+
 [dependency-groups]
 dev = [
     "httpx2>=2.0.0,<3.0.0",
@@ -31,3 +40,11 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "SIM", "UP"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true

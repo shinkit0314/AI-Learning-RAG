@@ -1,3 +1,8 @@
+param(
+    [switch]$WithLocalEmbedding,
+    [switch]$WithOpenAI
+)
+
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -18,7 +23,17 @@ else {
 Push-Location $projectRoot
 try {
     Write-Host "[1/2] Synchronizing dependencies from uv.lock..."
-    & $uvExecutable sync --locked --dev --link-mode copy
+    $syncArguments = @("sync", "--locked", "--dev", "--link-mode", "copy")
+    if ($WithLocalEmbedding) {
+        $syncArguments += @("--extra", "local-embedding")
+        Write-Host "      Including the optional local-embedding GPU dependencies."
+    }
+    if ($WithOpenAI) {
+        $syncArguments += @("--extra", "openai-generation")
+        Write-Host "      Including the optional OpenAI generation dependency."
+    }
+
+    & $uvExecutable @syncArguments
     if ($LASTEXITCODE -ne 0) {
         throw "uv sync failed with exit code $LASTEXITCODE."
     }

@@ -8,10 +8,16 @@
 - [环境准备指南](docs/ENVIRONMENT_SETUP.md)
 - [学习 01：工程基线](docs/learning/01-engineering-baseline.md)
 - [学习 02：纯文本标准化与切分](docs/learning/02-text-chunking.md)
+- [学习 03：本地 Embedding 基线](docs/learning/03-local-embedding.md)
+- [学习 04：内存向量检索](docs/learning/04-in-memory-vector-search.md)
+- [学习 05：串联最小检索流水线](docs/learning/05-retrieval-pipeline.md)
+- [学习 06：基于证据生成与引用](docs/learning/06-grounded-generation.md)
+- [学习 07：接入真实生成模型](docs/learning/07-openai-generation.md)
+- [学习 08：最小 RAG 闭环复盘](docs/learning/08-minimal-rag-retrospective.md)
 
 ## 当前进度
 
-第一个里程碑“工程基线”的最小版本已通过自动验证和人工确认。第二个里程碑“最小 RAG 闭环”正在进行，当前实现纯文本标准化与切分预览。
+第一个里程碑“工程基线”和第二个里程碑“最小 RAG 闭环”的最小版本均已通过自动验证与人工确认。下一步将把内存索引替换为持久化向量库，并分离离线建库和在线问答流程。
 
 ## 环境要求
 
