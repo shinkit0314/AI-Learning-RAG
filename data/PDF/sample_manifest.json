@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0",
+  "coordinate_system": {
+    "origin": "top_left",
+    "unit": "pdf_point",
+    "page_numbers_start_at": 1
+  },
+  "samples": [
+    {
+      "sample_id": "native-001",
+      "path": "data/PDF/native.pdf",
+      "sha256": "cdb8c8d333c4c3e9ac0f2547b67ebebe646a33ef6be83b587cb6602cb6ab40d9",
+      "expected_type": "native_text",
+      "expected_page_count": 6,
+      "expectations": {
+        "has_extractable_text": true,
+        "contains_full_page_images": false,
+        "requires_ocr": false
+      },
+      "manual_checks": [
+        {
+          "page_number": 1,
+          "kind": "text_contains",
+          "expected": "強化学習の定式化"
+        },
+        {
+          "page_number": 2,
+          "kind": "text_contains",
+          "expected": "問題設定：マルコフ決定過程（MDP）"
+        },
+        {
+          "page_number": 6,
+          "kind": "text_contains",
+          "expected": "最適化への準備：目的関数（期待収益）を定義しよう"
+        }
+      ],
+      "known_challenges": [
+        "FORMULA_READING_ORDER",
+        "TEXT_MIXED_WITH_DIAGRAMS"
+      ]
+    },
+    {
+      "sample_id": "layout-001",
+      "path": "data/PDF/layout.pdf",
+      "sha256": "bbf8a22582738d49f3428286117c0613b6cd378c5da2d08152036bf50cf52e5e",
+      "expected_type": "complex_layout_text",
+      "expected_page_count": 4,
+      "expectations": {
+        "has_extractable_text": true,
+        "contains_multiple_columns": true,
+        "requires_ocr": false
+      },
+      "manual_checks": [
+        {
+          "page_number": 1,
+          "kind": "text_contains",
+          "expected": "AI Agents vs. Agentic AI: A Conceptual taxonomy, applications and challenges"
+        },
+        {
+          "page_number": 1,
+          "kind": "text_contains",
+          "expected": "1. Introduction"
+        },
+        {
+          "page_number": 3,
+          "kind": "text_contains",
+          "expected": "Fig. 1."
+        },
+        {
+          "page_number": 3,
+          "kind": "text_contains",
+          "expected": "Fig. 3."
+        }
+      ],
+      "known_challenges": [
+        "MULTI_COLUMN_READING_ORDER",
+        "HEADER_FOOTER_NOISE",
+        "WORD_SPACING_LOSS",
+        "FIGURE_CAPTION_ASSOCIATION"
+      ]
+    },
+    {
+      "sample_id": "scan-001",
+      "path": "data/PDF/scan.pdf",
+      "sha256": "faa7142213568a56a613345f884e35759ee68455558e99136bc2c2f1fb2a23b7",
+      "expected_type": "scanned_with_ocr",
+      "expected_page_count": 5,
+      "expectations": {
+        "has_extractable_text": true,
+        "contains_full_page_images": true,
+        "requires_ocr": "quality_dependent",
+        "compare_embedded_and_rerun_ocr": true
+      },
+      "manual_checks": [
+        {
+          "page_number": 1,
+          "kind": "text_contains",
+          "expected": "可靠、可扩展与可维护的应用系统"
+        },
+        {
+          "page_number": 3,
+          "kind": "text_contains",
+          "expected": "图1-1：一种数据系统架构，它包含了多个不同组件"
+        },
+        {
+          "page_number": 4,
+          "kind": "text_contains",
+          "expected": "可扩展性"
+        },
+        {
+          "page_number": 4,
+          "kind": "text_contains",
+          "expected": "可维护性"
+        }
+      ],
+      "known_failures": [
+        {
+          "page_number": 1,
+          "code": "OCR_CHARACTER_SUBSTITUTION",
+          "expected": "属于数据密集型",
+          "observed": "属千数据密集型"
+        },
+        {
+          "page_number": 4,
+          "code": "OCR_LATIN_CHARACTER_SUBSTITUTION",
+          "expected": "Scalability",
+          "observed": "Scalab山ty"
+        },
+        {
+          "page_number": 3,
+          "code": "OCR_DIAGRAM_READING_ORDER",
+          "expected": "diagram labels grouped by component",
+          "observed": "diagram labels and punctuation are interleaved"
+        }
+      ]
+    }
+  ]
+}
