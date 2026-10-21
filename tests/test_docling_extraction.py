@@ -71,6 +71,13 @@ def _docling_fixture() -> dict:
             "prov": _provenance(2, left=100, top=600, right=200, bottom=570),
             "children": [],
         },
+        {
+            "self_ref": "#/texts/7",
+            "label": "code",
+            "text": "def answer():\n    return 42",
+            "prov": _provenance(1, left=40, top=540, right=300, bottom=490),
+            "children": [],
+        },
     ]
     return {
         "pages": {
@@ -82,6 +89,7 @@ def _docling_fixture() -> dict:
                 {"$ref": "#/texts/0"},
                 {"$ref": "#/texts/1"},
                 {"$ref": "#/groups/0"},
+                {"$ref": "#/texts/7"},
                 {"$ref": "#/pictures/0"},
                 {"$ref": "#/texts/5"},
             ]
@@ -120,8 +128,10 @@ def test_docling_labels_reading_order_and_coordinates_map_to_shared_schema() -> 
         BlockType.HEADING,
         BlockType.PARAGRAPH,
         BlockType.LIST_ITEM,
+        BlockType.CODE,
     ]
-    assert [block.reading_order for block in document.pages[0].blocks] == [0, 1, 2, 3]
+    assert [block.reading_order for block in document.pages[0].blocks] == [0, 1, 2, 3, 4]
+    assert document.pages[0].blocks[-1].text == "def answer():\n    return 42"
     assert document.pages[0].blocks[0].bbox.as_tuple() == (40, 20, 160, 40)
     assert [block.block_type for block in document.pages[1].blocks] == [
         BlockType.FIGURE_CAPTION,

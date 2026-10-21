@@ -32,7 +32,7 @@ DOCLING_LABEL_MAP = {
     "page_header": BlockType.HEADER,
     "page_footer": BlockType.FOOTER,
     "footnote": BlockType.OTHER,
-    "code": BlockType.OTHER,
+    "code": BlockType.CODE,
 }
 
 
@@ -149,7 +149,11 @@ def parsed_document_from_docling(
                 page_warnings[page_number].append("DOCLING_INVALID_BBOX")
                 continue
 
-            page_text = _provenance_text(text, provenance)
+            page_text = _provenance_text(
+                text,
+                provenance,
+                preserve_indentation=label == "code",
+            )
             if not page_text:
                 continue
             reading_order = len(page_blocks[page_number])
@@ -339,7 +343,10 @@ def _picture_specs(
 
 
 def _item_text(item: Mapping[str, Any], label: str) -> str:
-    text = str(item.get("text", "")).strip()
+    raw_text = str(item.get("text", ""))
+    text = raw_text.strip("\r\n") if label == "code" else raw_text.strip()
+    if not text.strip():
+        text = ""
     if text or label != "table":
         return text
 
@@ -357,15 +364,25 @@ def _item_text(item: Mapping[str, Any], label: str) -> str:
     return "\n".join("\t".join(row).rstrip() for row in cells).strip()
 
 
-def _provenance_text(text: str, provenance: Mapping[str, Any]) -> str:
+def _provenance_text(
+    text: str,
+    provenance: Mapping[str, Any],
+    *,
+    preserve_indentation: bool = False,
+) -> str:
     charspan = provenance.get("charspan")
     if (
         isinstance(charspan, list | tuple)
         and len(charspan) == 2
         and 0 <= int(charspan[0]) < int(charspan[1]) <= len(text)
     ):
-        return text[int(charspan[0]) : int(charspan[1])].strip()
-    return text.strip()
+        source_text = text[int(charspan[0]) : int(charspan[1])]
+    else:
+        source_text = text
+    if preserve_indentation:
+        source_text = source_text.strip("\r\n")
+        return source_text if source_text.strip() else ""
+    return source_text.strip()
 
 
 def _top_left_bbox(raw_bbox: Mapping[str, Any], page_height: float) -> BoundingBox:
