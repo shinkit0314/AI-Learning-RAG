@@ -6,6 +6,8 @@ from ai_learning_rag.pdf_schema import (
     BlockType,
     BoundingBox,
     ChunkCandidate,
+    ChunkContentType,
+    ChunkSourceRegion,
     ExtractionMethod,
     PageKind,
     ParsedBlock,
@@ -13,6 +15,8 @@ from ai_learning_rag.pdf_schema import (
     ParsedPage,
     ParsedPicture,
     ParseStatus,
+    TraceablePdfChunk,
+    build_traceable_pdf_chunk,
 )
 
 
@@ -22,12 +26,13 @@ def build_block(
     page_number: int = 1,
     reading_order: int = 0,
     text: str = "Traceable PDF text",
+    block_type: BlockType = BlockType.PARAGRAPH,
 ) -> ParsedBlock:
     """Build a small valid block for focused schema tests."""
     return ParsedBlock(
         id=block_id,
         page_number=page_number,
-        block_type=BlockType.PARAGRAPH,
+        block_type=block_type,
         text=text,
         bbox=BoundingBox(72.0, 100.0, 500.0, 140.0),
         reading_order=reading_order,
@@ -185,3 +190,166 @@ def test_picture_text_is_traceable_but_rejected_from_ordinary_chunks() -> None:
     assert page.pictures[0].child_block_ids == (picture_text.id,)
     with pytest.raises(ValueError, match="picture text"):
         ChunkCandidate(document_id="doc_pdf", blocks=(picture_text,))
+
+
+def test_finished_chunk_maps_content_spans_back_to_pdf_regions() -> None:
+    """Embedding text must retain the exact page and bbox for every source block."""
+    first = build_block(block_id="block_1", reading_order=0, text="First paragraph")
+    second = build_block(
+        block_id="block_2",
+        page_number=2,
+        reading_order=0,
+        text="Second paragraph",
+    )
+    candidate = ChunkCandidate(
+        document_id="doc_pdf",
+        section_path=("3 Method", "3.1 Architecture"),
+        blocks=(first, second),
+    )
+
+    chunk = build_traceable_pdf_chunk(candidate, chunk_index=4)
+
+    assert chunk.id.startswith("pdf_chunk_")
+    assert chunk.document_id == "doc_pdf"
+    assert chunk.chunk_index == 4
+    assert chunk.content == "First paragraph\nSecond paragraph"
+    assert chunk.content_type is ChunkContentType.BODY_TEXT
+    assert chunk.section_path == ("3 Method", "3.1 Architecture")
+    assert chunk.page_start == 1
+    assert chunk.page_end == 2
+    assert chunk.source_block_ids == ("block_1", "block_2")
+    assert chunk.bboxes == (
+        (72.0, 100.0, 500.0, 140.0),
+        (72.0, 100.0, 500.0, 140.0),
+    )
+    assert [
+        chunk.content[region.content_start : region.content_end] for region in chunk.source_regions
+    ] == ["First paragraph", "Second paragraph"]
+
+
+def test_finished_chunk_id_does_not_depend_on_display_order() -> None:
+    """Reordering other chunks must not change this chunk's identity."""
+    candidate = ChunkCandidate(document_id="doc_pdf", blocks=(build_block(),))
+
+    first_position = build_traceable_pdf_chunk(candidate, chunk_index=0)
+    later_position = build_traceable_pdf_chunk(candidate, chunk_index=9)
+
+    assert first_position.id == later_position.id
+
+
+def test_finished_chunk_id_changes_with_source_identity() -> None:
+    """Equal-looking text from different source blocks must remain distinguishable."""
+    first_candidate = ChunkCandidate(
+        document_id="doc_pdf",
+        blocks=(build_block(block_id="block_1"),),
+    )
+    second_candidate = ChunkCandidate(
+        document_id="doc_pdf",
+        blocks=(build_block(block_id="block_2"),),
+    )
+
+    first = build_traceable_pdf_chunk(first_candidate, chunk_index=0)
+    second = build_traceable_pdf_chunk(second_candidate, chunk_index=0)
+
+    assert first.id != second.id
+
+
+def test_code_block_can_become_a_first_class_code_chunk() -> None:
+    """Code must retain indentation and avoid falling through the OTHER type."""
+    code_text = "def answer():\n    return 42"
+    candidate = ChunkCandidate(
+        document_id="doc_pdf",
+        blocks=(build_block(text=code_text, block_type=BlockType.CODE),),
+    )
+
+    chunk = build_traceable_pdf_chunk(
+        candidate,
+        chunk_index=0,
+        content_type=ChunkContentType.CODE,
+    )
+
+    assert chunk.content_type is ChunkContentType.CODE
+    assert chunk.content == code_text
+    assert chunk.source_regions[0].block_type is BlockType.CODE
+
+
+def test_finished_chunk_rejects_a_source_range_outside_content() -> None:
+    """Invalid offsets must fail before citations can point at unrelated text."""
+    region = ChunkSourceRegion(
+        block_id="block_1",
+        page_number=1,
+        bbox=BoundingBox(72, 100, 500, 140),
+        block_type=BlockType.PARAGRAPH,
+        extraction_method=ExtractionMethod.NATIVE,
+        reading_order=0,
+        content_start=0,
+        content_end=20,
+    )
+
+    with pytest.raises(ValueError, match="inside chunk content"):
+        TraceablePdfChunk(
+            id="pdf_chunk_invalid",
+            document_id="doc_pdf",
+            chunk_index=0,
+            content="short text",
+            content_type=ChunkContentType.BODY_TEXT,
+            source_regions=(region,),
+        )
+
+
+def test_finished_chunk_rejects_overlapping_source_ranges() -> None:
+    """One content span must not ambiguously claim two source blocks."""
+    first = ChunkSourceRegion(
+        block_id="block_1",
+        page_number=1,
+        bbox=BoundingBox(72, 100, 500, 140),
+        block_type=BlockType.PARAGRAPH,
+        extraction_method=ExtractionMethod.NATIVE,
+        reading_order=0,
+        content_start=0,
+        content_end=6,
+    )
+    second = ChunkSourceRegion(
+        block_id="block_2",
+        page_number=1,
+        bbox=BoundingBox(72, 150, 500, 190),
+        block_type=BlockType.PARAGRAPH,
+        extraction_method=ExtractionMethod.NATIVE,
+        reading_order=1,
+        content_start=5,
+        content_end=10,
+    )
+
+    with pytest.raises(ValueError, match="must not overlap"):
+        TraceablePdfChunk(
+            id="pdf_chunk_invalid",
+            document_id="doc_pdf",
+            chunk_index=0,
+            content="0123456789",
+            content_type=ChunkContentType.BODY_TEXT,
+            source_regions=(first, second),
+        )
+
+
+def test_finished_chunk_rejects_unmapped_non_whitespace_content() -> None:
+    """Every meaningful character sent to Embedding must have a PDF source."""
+    region = ChunkSourceRegion(
+        block_id="block_1",
+        page_number=1,
+        bbox=BoundingBox(72, 100, 500, 140),
+        block_type=BlockType.PARAGRAPH,
+        extraction_method=ExtractionMethod.NATIVE,
+        reading_order=0,
+        content_start=7,
+        content_end=17,
+    )
+
+    with pytest.raises(ValueError, match="unmapped source text"):
+        TraceablePdfChunk(
+            id="pdf_chunk_invalid",
+            document_id="doc_pdf",
+            chunk_index=0,
+            content="prefix mapped text",
+            content_type=ChunkContentType.BODY_TEXT,
+            source_regions=(region,),
+        )

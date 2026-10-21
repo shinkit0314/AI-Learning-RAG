@@ -14,10 +14,15 @@
 - [学习 06：基于证据生成与引用](docs/learning/06-grounded-generation.md)
 - [学习 07：接入真实生成模型](docs/learning/07-openai-generation.md)
 - [学习 08：最小 RAG 闭环复盘](docs/learning/08-minimal-rag-retrospective.md)
+- [学习 09：PDF 提取基线](docs/learning/09-pdf-extraction-baseline.md)
+- [学习 10：PDF 解析路由决策](docs/learning/10-pdf-routing-decision.md)
+- [学习 11：可追溯 PDF Chunk 输出契约](docs/learning/11-pdf-chunk-contract.md)
 
 ## 当前进度
 
-第一个里程碑“工程基线”和第二个里程碑“最小 RAG 闭环”的最小版本均已通过自动验证与人工确认。下一步将把内存索引替换为持久化向量库，并分离离线建库和在线问答流程。
+第一个里程碑“工程基线”和第二个里程碑“最小 RAG 闭环”已经通过验收。PDF 知识库阶段
+已经完成三类样本的解析基线、路由决策和可追溯 Chunk 输出契约，下一步将实现结构感知切分，
+再把 PDF Chunk 接入现有 Embedding 与检索流程。
 
 ## 环境要求
 
