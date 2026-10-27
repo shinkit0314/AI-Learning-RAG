@@ -1,5 +1,6 @@
 """Traceable data contracts shared by PDF parsers and downstream chunking."""
 
+import json
 from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
@@ -58,6 +59,35 @@ class ChunkContentType(StrEnum):
     FORMULA = "formula"
     FIGURE_CAPTION = "figure_caption"
     CODE = "code"
+    OTHER = "other"
+
+
+class WarningSeverity(StrEnum):
+    """How strongly a chunk warning should affect downstream processing."""
+
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+@dataclass(frozen=True, slots=True)
+class ChunkWarning:
+    """A structured, machine-readable warning attached to one finished chunk."""
+
+    code: str
+    severity: WarningSeverity
+    message: str
+    source_block_ids: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.code.strip():
+            raise ValueError("warning code must not be blank")
+        if not self.message.strip():
+            raise ValueError("warning message must not be blank")
+        if any(not block_id.strip() for block_id in self.source_block_ids):
+            raise ValueError("warning source block ids must not be blank")
+        if len(self.source_block_ids) != len(set(self.source_block_ids)):
+            raise ValueError("warning source block ids must be unique")
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,31 +266,86 @@ class ParsedDocument:
 
 
 @dataclass(frozen=True, slots=True)
+class ChunkBlockSlice:
+    """A contiguous character range selected from one parsed source block."""
+
+    block: ParsedBlock
+    source_text_start: int
+    source_text_end: int
+
+    def __post_init__(self) -> None:
+        if self.source_text_start < 0:
+            raise ValueError("source_text_start must not be negative")
+        if self.source_text_end <= self.source_text_start:
+            raise ValueError("source text range must have positive length")
+        if self.source_text_end > len(self.block.text):
+            raise ValueError("source text range must stay inside the source block")
+        if not self.text.strip():
+            raise ValueError("source text range must contain non-whitespace text")
+
+    @classmethod
+    def whole(cls, block: ParsedBlock) -> "ChunkBlockSlice":
+        """Select the complete text of one parsed block."""
+        return cls(block=block, source_text_start=0, source_text_end=len(block.text))
+
+    @property
+    def text(self) -> str:
+        """Return the selected source text without modifying its characters."""
+        return self.block.text[self.source_text_start : self.source_text_end]
+
+
+@dataclass(frozen=True, slots=True)
 class ChunkCandidate:
-    """Body-text parser output offered to a later chunking strategy."""
+    """Source block slices offered to a later chunking strategy."""
 
     document_id: str
-    blocks: tuple[ParsedBlock, ...]
+    block_slices: tuple[ChunkBlockSlice, ...]
     section_path: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.document_id.strip():
             raise ValueError("document_id must not be blank")
-        if not self.blocks:
-            raise ValueError("chunk candidate must contain at least one block")
+        if not self.block_slices:
+            raise ValueError("chunk candidate must contain at least one block slice")
         if any(not section.strip() for section in self.section_path):
             raise ValueError("section_path entries must not be blank")
-        if any(block.block_type is BlockType.PICTURE_TEXT for block in self.blocks):
+        if any(
+            block_slice.block.block_type is BlockType.PICTURE_TEXT
+            for block_slice in self.block_slices
+        ):
             raise ValueError("picture text must not enter an ordinary chunk candidate")
 
-        source_locations = [(block.page_number, block.reading_order) for block in self.blocks]
+        source_locations = [
+            (block_slice.block.page_number, block_slice.block.reading_order)
+            for block_slice in self.block_slices
+        ]
         if source_locations != sorted(source_locations):
             raise ValueError("chunk candidate blocks must follow document reading order")
 
+    @classmethod
+    def from_blocks(
+        cls,
+        *,
+        document_id: str,
+        blocks: tuple[ParsedBlock, ...],
+        section_path: tuple[str, ...] = (),
+    ) -> "ChunkCandidate":
+        """Create a candidate that uses the complete text of every source block."""
+        return cls(
+            document_id=document_id,
+            block_slices=tuple(ChunkBlockSlice.whole(block) for block in blocks),
+            section_path=section_path,
+        )
+
+    @property
+    def blocks(self) -> tuple[ParsedBlock, ...]:
+        """Return source blocks in candidate reading order."""
+        return tuple(block_slice.block for block_slice in self.block_slices)
+
     @property
     def content(self) -> str:
-        """Join block text without discarding the source block boundaries."""
-        return "\n".join(block.text for block in self.blocks)
+        """Join selected source text without discarding slice boundaries."""
+        return "\n".join(block_slice.text for block_slice in self.block_slices)
 
     @property
     def page_start(self) -> int:
@@ -293,8 +378,10 @@ class ChunkSourceRegion:
     block_type: BlockType
     extraction_method: ExtractionMethod
     reading_order: int
-    content_start: int
-    content_end: int
+    chunk_content_start: int
+    chunk_content_end: int
+    source_text_start: int
+    source_text_end: int
     confidence: float | None = None
     warnings: tuple[str, ...] = ()
 
@@ -305,10 +392,14 @@ class ChunkSourceRegion:
             raise ValueError("source page_number must start at 1")
         if self.reading_order < 0:
             raise ValueError("source reading_order must not be negative")
-        if self.content_start < 0:
-            raise ValueError("source content_start must not be negative")
-        if self.content_end <= self.content_start:
-            raise ValueError("source content range must have positive length")
+        if self.chunk_content_start < 0:
+            raise ValueError("chunk_content_start must not be negative")
+        if self.chunk_content_end <= self.chunk_content_start:
+            raise ValueError("chunk content range must have positive length")
+        if self.source_text_start < 0:
+            raise ValueError("source_text_start must not be negative")
+        if self.source_text_end <= self.source_text_start:
+            raise ValueError("source text range must have positive length")
         if self.confidence is not None and not 0 <= self.confidence <= 1:
             raise ValueError("source confidence must be between 0 and 1")
 
@@ -318,20 +409,27 @@ class TraceablePdfChunk:
     """Embedding-ready PDF text with exact source regions for later citations."""
 
     id: str
+    source_fingerprint: str
     document_id: str
     chunk_index: int
+    chunking_profile: str
     content: str
     content_type: ChunkContentType
     source_regions: tuple[ChunkSourceRegion, ...]
     section_path: tuple[str, ...] = ()
+    warnings: tuple[ChunkWarning, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.id.strip():
             raise ValueError("chunk id must not be blank")
+        if not _is_sha256(self.source_fingerprint):
+            raise ValueError("source_fingerprint must contain 64 hexadecimal characters")
         if not self.document_id.strip():
             raise ValueError("document_id must not be blank")
         if self.chunk_index < 0:
             raise ValueError("chunk_index must not be negative")
+        if not self.chunking_profile.strip():
+            raise ValueError("chunking_profile must not be blank")
         if not self.content.strip():
             raise ValueError("chunk content must not be blank")
         if not self.source_regions:
@@ -349,15 +447,22 @@ class TraceablePdfChunk:
         if source_locations != sorted(source_locations):
             raise ValueError("source regions must follow document reading order")
 
+        source_block_ids = set(block_ids)
+        if any(
+            not set(warning.source_block_ids).issubset(source_block_ids)
+            for warning in self.warnings
+        ):
+            raise ValueError("chunk warnings must reference source blocks in the chunk")
+
         previous_end = 0
         for region in self.source_regions:
-            if region.content_end > len(self.content):
+            if region.chunk_content_end > len(self.content):
                 raise ValueError("source content range must stay inside chunk content")
-            if region.content_start < previous_end:
+            if region.chunk_content_start < previous_end:
                 raise ValueError("source content ranges must not overlap")
-            if self.content[previous_end : region.content_start].strip():
+            if self.content[previous_end : region.chunk_content_start].strip():
                 raise ValueError("chunk content must not contain unmapped source text")
-            previous_end = region.content_end
+            previous_end = region.chunk_content_end
         if self.content[previous_end:].strip():
             raise ValueError("chunk content must not contain unmapped source text")
 
@@ -386,20 +491,25 @@ def build_traceable_pdf_chunk(
     candidate: ChunkCandidate,
     *,
     chunk_index: int,
+    chunking_profile: str,
     content_type: ChunkContentType = ChunkContentType.BODY_TEXT,
+    warnings: tuple[ChunkWarning, ...] = (),
 ) -> TraceablePdfChunk:
     """Turn one accepted candidate into a deterministic, embedding-ready chunk."""
     if chunk_index < 0:
         raise ValueError("chunk_index must not be negative")
+    if not chunking_profile.strip():
+        raise ValueError("chunking_profile must not be blank")
 
     content = candidate.content
     source_regions: list[ChunkSourceRegion] = []
     content_cursor = 0
-    for block_index, block in enumerate(candidate.blocks):
-        if block_index:
+    for slice_index, block_slice in enumerate(candidate.block_slices):
+        if slice_index:
             content_cursor += 1  # ChunkCandidate joins adjacent blocks with one newline.
-        content_start = content_cursor
-        content_end = content_start + len(block.text)
+        block = block_slice.block
+        chunk_content_start = content_cursor
+        chunk_content_end = chunk_content_start + len(block_slice.text)
         source_regions.append(
             ChunkSourceRegion(
                 block_id=block.id,
@@ -408,30 +518,54 @@ def build_traceable_pdf_chunk(
                 block_type=block.block_type,
                 extraction_method=block.extraction_method,
                 reading_order=block.reading_order,
-                content_start=content_start,
-                content_end=content_end,
+                chunk_content_start=chunk_content_start,
+                chunk_content_end=chunk_content_end,
+                source_text_start=block_slice.source_text_start,
+                source_text_end=block_slice.source_text_end,
                 confidence=block.confidence,
                 warnings=block.warnings,
             )
         )
-        content_cursor = content_end
+        content_cursor = chunk_content_end
 
-    identity = "\0".join(
-        (
-            candidate.document_id,
-            content_type.value,
-            "\x1f".join(candidate.section_path),
-            "\x1f".join(candidate.source_block_ids),
-            content,
-        )
+    source_identity = json.dumps(
+        {
+            "document_id": candidate.document_id,
+            "content_type": content_type.value,
+            "section_path": candidate.section_path,
+            "source_ranges": [
+                {
+                    "block_id": region.block_id,
+                    "source_text_start": region.source_text_start,
+                    "source_text_end": region.source_text_end,
+                }
+                for region in source_regions
+            ],
+            "content": content,
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
     )
-    chunk_id = f"pdf_chunk_{sha256(identity.encode()).hexdigest()[:16]}"
+    source_fingerprint = sha256(source_identity.encode()).hexdigest()
+    chunk_identity = f"{chunking_profile}\0{source_fingerprint}"
+    chunk_id = f"pdf_chunk_{sha256(chunk_identity.encode()).hexdigest()[:8]}"
     return TraceablePdfChunk(
         id=chunk_id,
+        source_fingerprint=source_fingerprint,
         document_id=candidate.document_id,
         chunk_index=chunk_index,
+        chunking_profile=chunking_profile,
         content=content,
         content_type=content_type,
         source_regions=tuple(source_regions),
         section_path=candidate.section_path,
+        warnings=warnings,
+    )
+
+
+def _is_sha256(value: str) -> bool:
+    normalized = value.lower()
+    return len(normalized) == 64 and all(
+        character in "0123456789abcdef" for character in normalized
     )

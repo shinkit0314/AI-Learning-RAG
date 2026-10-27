@@ -5,9 +5,11 @@ import pytest
 from ai_learning_rag.pdf_schema import (
     BlockType,
     BoundingBox,
+    ChunkBlockSlice,
     ChunkCandidate,
     ChunkContentType,
     ChunkSourceRegion,
+    ChunkWarning,
     ExtractionMethod,
     PageKind,
     ParsedBlock,
@@ -16,6 +18,7 @@ from ai_learning_rag.pdf_schema import (
     ParsedPicture,
     ParseStatus,
     TraceablePdfChunk,
+    WarningSeverity,
     build_traceable_pdf_chunk,
 )
 
@@ -38,6 +41,18 @@ def build_block(
         reading_order=reading_order,
         extraction_method=ExtractionMethod.NATIVE,
         confidence=1.0,
+    )
+
+
+def candidate_from_blocks(
+    *blocks: ParsedBlock,
+    section_path: tuple[str, ...] = (),
+) -> ChunkCandidate:
+    """Create a whole-block candidate for tests not focused on partial slices."""
+    return ChunkCandidate.from_blocks(
+        document_id="doc_pdf",
+        blocks=blocks,
+        section_path=section_path,
     )
 
 
@@ -71,7 +86,7 @@ def test_chunk_candidate_preserves_source_blocks_pages_and_regions() -> None:
     first = build_block(block_id="block_1", reading_order=0, text="First paragraph")
     second = build_block(block_id="block_2", reading_order=1, text="Second paragraph")
 
-    candidate = ChunkCandidate(
+    candidate = ChunkCandidate.from_blocks(
         document_id="doc_pdf",
         section_path=("3 Method", "3.1 Architecture"),
         blocks=(first, second),
@@ -156,7 +171,7 @@ def test_chunk_candidate_rejects_reversed_reading_order() -> None:
     second = build_block(block_id="block_2", reading_order=0)
 
     with pytest.raises(ValueError, match="reading order"):
-        ChunkCandidate(document_id="doc_pdf", blocks=(first, second))
+        ChunkCandidate.from_blocks(document_id="doc_pdf", blocks=(first, second))
 
 
 def test_picture_text_is_traceable_but_rejected_from_ordinary_chunks() -> None:
@@ -189,11 +204,11 @@ def test_picture_text_is_traceable_but_rejected_from_ordinary_chunks() -> None:
 
     assert page.pictures[0].child_block_ids == (picture_text.id,)
     with pytest.raises(ValueError, match="picture text"):
-        ChunkCandidate(document_id="doc_pdf", blocks=(picture_text,))
+        ChunkCandidate.from_blocks(document_id="doc_pdf", blocks=(picture_text,))
 
 
 def test_finished_chunk_maps_content_spans_back_to_pdf_regions() -> None:
-    """Embedding text must retain the exact page and bbox for every source block."""
+    """Chunk text must retain the exact page and bbox for every source block."""
     first = build_block(block_id="block_1", reading_order=0, text="First paragraph")
     second = build_block(
         block_id="block_2",
@@ -201,15 +216,22 @@ def test_finished_chunk_maps_content_spans_back_to_pdf_regions() -> None:
         reading_order=0,
         text="Second paragraph",
     )
-    candidate = ChunkCandidate(
+    candidate = ChunkCandidate.from_blocks(
         document_id="doc_pdf",
         section_path=("3 Method", "3.1 Architecture"),
         blocks=(first, second),
     )
 
-    chunk = build_traceable_pdf_chunk(candidate, chunk_index=4)
+    chunk = build_traceable_pdf_chunk(
+        candidate,
+        chunk_index=4,
+        chunking_profile="pdf-structure-v1",
+    )
 
     assert chunk.id.startswith("pdf_chunk_")
+    assert len(chunk.id.removeprefix("pdf_chunk_")) == 8
+    assert len(chunk.source_fingerprint) == 64
+    assert chunk.chunking_profile == "pdf-structure-v1"
     assert chunk.document_id == "doc_pdf"
     assert chunk.chunk_index == 4
     assert chunk.content == "First paragraph\nSecond paragraph"
@@ -223,33 +245,117 @@ def test_finished_chunk_maps_content_spans_back_to_pdf_regions() -> None:
         (72.0, 100.0, 500.0, 140.0),
     )
     assert [
-        chunk.content[region.content_start : region.content_end] for region in chunk.source_regions
+        chunk.content[region.chunk_content_start : region.chunk_content_end]
+        for region in chunk.source_regions
     ] == ["First paragraph", "Second paragraph"]
+    assert [
+        (region.source_text_start, region.source_text_end) for region in chunk.source_regions
+    ] == [
+        (0, len("First paragraph")),
+        (0, len("Second paragraph")),
+    ]
+
+
+def test_partial_block_slice_maps_chunk_text_back_to_source_offsets() -> None:
+    """One chunk may safely contain only a contiguous part of a source block."""
+    block = build_block(text="0123456789")
+    candidate = ChunkCandidate(
+        document_id="doc_pdf",
+        block_slices=(ChunkBlockSlice(block, source_text_start=2, source_text_end=7),),
+    )
+
+    chunk = build_traceable_pdf_chunk(
+        candidate,
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
+    )
+
+    assert chunk.content == "23456"
+    region = chunk.source_regions[0]
+    assert (region.chunk_content_start, region.chunk_content_end) == (0, 5)
+    assert (region.source_text_start, region.source_text_end) == (2, 7)
+
+
+def test_equal_text_from_different_source_ranges_has_different_fingerprint() -> None:
+    """Repeated text inside one block must remain distinguishable by source offsets."""
+    block = build_block(text="abcabc")
+    first_candidate = ChunkCandidate(
+        document_id="doc_pdf",
+        block_slices=(ChunkBlockSlice(block, 0, 3),),
+    )
+    second_candidate = ChunkCandidate(
+        document_id="doc_pdf",
+        block_slices=(ChunkBlockSlice(block, 3, 6),),
+    )
+
+    first = build_traceable_pdf_chunk(
+        first_candidate,
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
+    )
+    second = build_traceable_pdf_chunk(
+        second_candidate,
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
+    )
+
+    assert first.content == second.content == "abc"
+    assert first.source_fingerprint != second.source_fingerprint
+    assert first.id != second.id
 
 
 def test_finished_chunk_id_does_not_depend_on_display_order() -> None:
     """Reordering other chunks must not change this chunk's identity."""
-    candidate = ChunkCandidate(document_id="doc_pdf", blocks=(build_block(),))
+    candidate = candidate_from_blocks(build_block())
 
-    first_position = build_traceable_pdf_chunk(candidate, chunk_index=0)
-    later_position = build_traceable_pdf_chunk(candidate, chunk_index=9)
+    first_position = build_traceable_pdf_chunk(
+        candidate,
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
+    )
+    later_position = build_traceable_pdf_chunk(
+        candidate,
+        chunk_index=9,
+        chunking_profile="pdf-structure-v1",
+    )
 
     assert first_position.id == later_position.id
 
 
-def test_finished_chunk_id_changes_with_source_identity() -> None:
-    """Equal-looking text from different source blocks must remain distinguishable."""
-    first_candidate = ChunkCandidate(
-        document_id="doc_pdf",
-        blocks=(build_block(block_id="block_1"),),
+def test_chunking_profile_changes_id_but_not_source_fingerprint() -> None:
+    """Processing lineage should change identity without hiding equal source content."""
+    candidate = candidate_from_blocks(build_block())
+
+    first = build_traceable_pdf_chunk(
+        candidate,
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
     )
-    second_candidate = ChunkCandidate(
-        document_id="doc_pdf",
-        blocks=(build_block(block_id="block_2"),),
+    second = build_traceable_pdf_chunk(
+        candidate,
+        chunk_index=0,
+        chunking_profile="pdf-structure-v2",
     )
 
-    first = build_traceable_pdf_chunk(first_candidate, chunk_index=0)
-    second = build_traceable_pdf_chunk(second_candidate, chunk_index=0)
+    assert first.source_fingerprint == second.source_fingerprint
+    assert first.id != second.id
+
+
+def test_finished_chunk_id_changes_with_source_identity() -> None:
+    """Equal-looking text from different source blocks must remain distinguishable."""
+    first_candidate = candidate_from_blocks(build_block(block_id="block_1"))
+    second_candidate = candidate_from_blocks(build_block(block_id="block_2"))
+
+    first = build_traceable_pdf_chunk(
+        first_candidate,
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
+    )
+    second = build_traceable_pdf_chunk(
+        second_candidate,
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
+    )
 
     assert first.id != second.id
 
@@ -257,20 +363,41 @@ def test_finished_chunk_id_changes_with_source_identity() -> None:
 def test_code_block_can_become_a_first_class_code_chunk() -> None:
     """Code must retain indentation and avoid falling through the OTHER type."""
     code_text = "def answer():\n    return 42"
-    candidate = ChunkCandidate(
-        document_id="doc_pdf",
-        blocks=(build_block(text=code_text, block_type=BlockType.CODE),),
-    )
+    candidate = candidate_from_blocks(build_block(text=code_text, block_type=BlockType.CODE))
 
     chunk = build_traceable_pdf_chunk(
         candidate,
         chunk_index=0,
+        chunking_profile="pdf-structure-v1",
         content_type=ChunkContentType.CODE,
     )
 
     assert chunk.content_type is ChunkContentType.CODE
     assert chunk.content == code_text
     assert chunk.source_regions[0].block_type is BlockType.CODE
+
+
+def test_other_content_is_preserved_with_a_structured_warning() -> None:
+    """Unknown content must be quarantined without being discarded."""
+    block = build_block(block_type=BlockType.OTHER)
+    candidate = candidate_from_blocks(block)
+    warning = ChunkWarning(
+        code="UNSUPPORTED_CONTENT_TYPE",
+        severity=WarningSeverity.WARNING,
+        message="The source block type has no dedicated chunking strategy.",
+        source_block_ids=(block.id,),
+    )
+
+    chunk = build_traceable_pdf_chunk(
+        candidate,
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
+        content_type=ChunkContentType.OTHER,
+        warnings=(warning,),
+    )
+
+    assert chunk.content_type is ChunkContentType.OTHER
+    assert chunk.warnings == (warning,)
 
 
 def test_finished_chunk_rejects_a_source_range_outside_content() -> None:
@@ -282,15 +409,19 @@ def test_finished_chunk_rejects_a_source_range_outside_content() -> None:
         block_type=BlockType.PARAGRAPH,
         extraction_method=ExtractionMethod.NATIVE,
         reading_order=0,
-        content_start=0,
-        content_end=20,
+        chunk_content_start=0,
+        chunk_content_end=20,
+        source_text_start=0,
+        source_text_end=20,
     )
 
     with pytest.raises(ValueError, match="inside chunk content"):
         TraceablePdfChunk(
             id="pdf_chunk_invalid",
+            source_fingerprint="a" * 64,
             document_id="doc_pdf",
             chunk_index=0,
+            chunking_profile="pdf-structure-v1",
             content="short text",
             content_type=ChunkContentType.BODY_TEXT,
             source_regions=(region,),
@@ -306,8 +437,10 @@ def test_finished_chunk_rejects_overlapping_source_ranges() -> None:
         block_type=BlockType.PARAGRAPH,
         extraction_method=ExtractionMethod.NATIVE,
         reading_order=0,
-        content_start=0,
-        content_end=6,
+        chunk_content_start=0,
+        chunk_content_end=6,
+        source_text_start=0,
+        source_text_end=6,
     )
     second = ChunkSourceRegion(
         block_id="block_2",
@@ -316,15 +449,19 @@ def test_finished_chunk_rejects_overlapping_source_ranges() -> None:
         block_type=BlockType.PARAGRAPH,
         extraction_method=ExtractionMethod.NATIVE,
         reading_order=1,
-        content_start=5,
-        content_end=10,
+        chunk_content_start=5,
+        chunk_content_end=10,
+        source_text_start=0,
+        source_text_end=5,
     )
 
     with pytest.raises(ValueError, match="must not overlap"):
         TraceablePdfChunk(
             id="pdf_chunk_invalid",
+            source_fingerprint="a" * 64,
             document_id="doc_pdf",
             chunk_index=0,
+            chunking_profile="pdf-structure-v1",
             content="0123456789",
             content_type=ChunkContentType.BODY_TEXT,
             source_regions=(first, second),
@@ -340,15 +477,19 @@ def test_finished_chunk_rejects_unmapped_non_whitespace_content() -> None:
         block_type=BlockType.PARAGRAPH,
         extraction_method=ExtractionMethod.NATIVE,
         reading_order=0,
-        content_start=7,
-        content_end=17,
+        chunk_content_start=7,
+        chunk_content_end=17,
+        source_text_start=0,
+        source_text_end=10,
     )
 
     with pytest.raises(ValueError, match="unmapped source text"):
         TraceablePdfChunk(
             id="pdf_chunk_invalid",
+            source_fingerprint="a" * 64,
             document_id="doc_pdf",
             chunk_index=0,
+            chunking_profile="pdf-structure-v1",
             content="prefix mapped text",
             content_type=ChunkContentType.BODY_TEXT,
             source_regions=(region,),

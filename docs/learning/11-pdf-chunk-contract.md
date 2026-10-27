@@ -9,9 +9,10 @@ PDF 解析器输出的是页面和 block，而 Embedding 接收的是字符串�
 
 ~~~text
 ParsedBlock
+  -> ChunkBlockSlice
   -> ChunkCandidate
   -> TraceablePdfChunk
-       ├─ content：交给 Embedding 的正文
+       ├─ content：保持来源安全的 Chunk 正文
        ├─ section_path：章节上下文
        └─ source_regions：正文字符范围到 PDF 区域的映射
 ~~~
@@ -29,7 +30,17 @@ ParsedBlock
 - 该文字来自原生文本、Docling 还是重跑 OCR；
 - OCR 置信度和解析警告是否需要展示给用户。
 
-因此，每个来源 block 都转换为一个 `ChunkSourceRegion`。
+因此，每个来源 block 或 block 切片都转换为一个 `ChunkSourceRegion`。
+
+## ChunkBlockSlice
+
+`ChunkCandidate` 不再假设每次都使用完整 block。`ChunkBlockSlice` 保存一个连续的原文范围：
+
+- `block`：原始 `ParsedBlock`；
+- `source_text_start` 和 `source_text_end`：被选中的原始字符范围。
+
+完整 block 使用 `[0, len(block.text))`。超长段落、表格或代码被切分时，不同 chunk 可以引用
+同一个 block 的不同范围，而不丢失原文位置。
 
 ## ChunkSourceRegion
 
@@ -40,44 +51,56 @@ ParsedBlock
 - `block_type`：标题、段落、表格等语义类型；
 - `extraction_method`：原生提取、版面解析或 OCR；
 - `reading_order`：在原页面中的阅读顺序；
-- `content_start` 和 `content_end`：该 block 在 chunk 正文中的字符范围；
+- `chunk_content_start` 和 `chunk_content_end`：该切片在 chunk 正文中的字符范围；
+- `source_text_start` 和 `source_text_end`：该切片在原始 block 中的字符范围；
 - `confidence` 和 `warnings`：质量判断信息。
 
-字符范围使用 Python 字符串的左闭右开规则 `[content_start, content_end)`。因此可以直接使用：
+字符范围使用 Python 字符串的左闭右开规则 `[start, end)`。因此可以验证：
 
 ~~~python
-source_text = chunk.content[region.content_start : region.content_end]
+chunk_text = chunk.content[region.chunk_content_start : region.chunk_content_end]
+source_text = parsed_block.text[region.source_text_start : region.source_text_end]
 ~~~
 
-重新得到进入该 chunk 的 block 文字。
+两者应对应同一段来源文字。
 
 ## TraceablePdfChunk
 
 最终 chunk 包含：
 
 - 稳定 `id`；
+- 完整 SHA-256 `source_fingerprint`；
 - `document_id`；
 - 用于展示顺序的 `chunk_index`；
-- 交给 Embedding 的 `content`；
+- `chunking_profile`；
+- 保持来源安全的 `content`；
 - `content_type`；
 - `section_path`；
-- 一个或多个 `source_regions`。
+- 一个或多个 `source_regions`；
+- 结构化 `warnings`。
 
 `page_start`、`page_end`、`source_block_ids` 和 `bboxes` 都可以从来源区域确定性得到，避免存储
 互相矛盾的重复字段。
 
-## 稳定 ID 的设计
+## 双标识设计
 
-chunk ID 由以下内容计算 SHA-256：
+`source_fingerprint` 使用完整 SHA-256，输入包括：
 
 - 文档 ID；
 - 内容类型；
 - 章节路径；
-- 来源 block ID；
+- 来源 block ID 及原文字符范围；
 - chunk 正文。
 
-`chunk_index` 不参与 ID。若只是在文档前面增加了另一个 chunk，原 chunk 的显示顺序可能变化，
-但其内容和来源没有变化，不应该在未来的向量索引中被当成全新记录。
+`chunk.id` 再根据 `chunking_profile + source_fingerprint` 计算。当前学习项目为了便于阅读，只使用
+第二次 SHA-256 的前 8 个十六进制字符作为短 ID；写入数据库时必须用完整
+`chunking_profile + source_fingerprint` 校验已有记录，不能在短 ID 冲突时静默覆盖。
+
+`chunk_index` 不参与任何身份计算。若只是在文档前面增加了另一个 chunk，原 chunk 的显示顺序
+可能变化，但其内容和来源没有变化，不应该被当成全新来源。
+
+同一来源由不同 `chunking_profile` 生成时，`source_fingerprint` 相同而 `chunk.id` 不同。这样既能
+保留处理版本，又能识别两条记录实际引用了相同内容。
 
 相反，即使两个 chunk 的文字完全相同，只要来源 block 不同，它们的 ID 仍然不同。
 
@@ -90,6 +113,10 @@ chunk ID 由以下内容计算 SHA-256：
 - `formula`：需要独立处理的公式；
 - `figure_caption`：需要独立检索或展示的图注。
 - `code`：保留换行和缩进、使用代码边界切分的代码块。
+- `other`：未知类型的隔离区，保留但默认不进入 Embedding。
+
+Chunk 警告包含稳定 `code`、`severity`、说明文字和受影响的 block ID。严重程度分为 `info`、
+`warning` 和 `error`，后续索引阶段可以据此决定是否允许生成 Embedding。
 
 图中节点文字仍然不会进入普通 `ChunkCandidate`，因此也不会通过普通路径生成
 `TraceablePdfChunk`。
