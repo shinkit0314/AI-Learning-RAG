@@ -149,6 +149,8 @@ activemq-data/
 
 # Environments
 .env
+.env.*
+!.env.example
 .envrc
 .venv
 env/
@@ -205,6 +207,14 @@ tempCodeRunnerFile.py
 
 # Ruff stuff:
 .ruff_cache/
+
+# uv cache used by Codex setup hooks
+.uv-cache/
+
+# Local PDF research inputs and reproducible experiment outputs
+data/PDF/**/*.pdf
+output/
+tmp/
 
 # PyPI configuration file
 .pypirc
