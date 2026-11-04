@@ -207,6 +207,70 @@ def test_picture_text_is_traceable_but_rejected_from_ordinary_chunks() -> None:
         ChunkCandidate.from_blocks(document_id="doc_pdf", blocks=(picture_text,))
 
 
+def test_heading_level_is_only_valid_for_heading_blocks() -> None:
+    heading = build_block(block_type=BlockType.HEADING)
+    explicit_heading = ParsedBlock(
+        id="heading_1",
+        page_number=1,
+        block_type=BlockType.HEADING,
+        text="3.2.1 Chunk parameters",
+        bbox=BoundingBox(72, 100, 500, 140),
+        reading_order=0,
+        extraction_method=ExtractionMethod.LAYOUT,
+        heading_level=3,
+    )
+
+    assert heading.heading_level is None
+    assert explicit_heading.heading_level == 3
+
+    with pytest.raises(ValueError, match="positive integer"):
+        ParsedBlock(
+            id="heading_0",
+            page_number=1,
+            block_type=BlockType.HEADING,
+            text="Invalid heading",
+            bbox=BoundingBox(72, 100, 500, 140),
+            reading_order=0,
+            extraction_method=ExtractionMethod.LAYOUT,
+            heading_level=0,
+        )
+
+    with pytest.raises(ValueError, match="only heading"):
+        ParsedBlock(
+            id="paragraph_with_level",
+            page_number=1,
+            block_type=BlockType.PARAGRAPH,
+            text="Not a heading",
+            bbox=BoundingBox(72, 100, 500, 140),
+            reading_order=0,
+            extraction_method=ExtractionMethod.NATIVE,
+            heading_level=1,
+        )
+
+
+def test_figure_caption_relationship_is_preserved_in_chunk_source() -> None:
+    caption = ParsedBlock(
+        id="caption_1",
+        page_number=1,
+        block_type=BlockType.FIGURE_CAPTION,
+        text="Figure 1. System architecture",
+        bbox=BoundingBox(100, 400, 500, 430),
+        reading_order=0,
+        extraction_method=ExtractionMethod.LAYOUT,
+        parent_picture_id="picture_1",
+    )
+    candidate = ChunkCandidate.from_blocks(document_id="doc_pdf", blocks=(caption,))
+
+    chunk = build_traceable_pdf_chunk(
+        candidate,
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
+        content_type=ChunkContentType.FIGURE_CAPTION,
+    )
+
+    assert chunk.source_regions[0].parent_picture_id == "picture_1"
+
+
 def test_finished_chunk_maps_content_spans_back_to_pdf_regions() -> None:
     """Chunk text must retain the exact page and bbox for every source block."""
     first = build_block(block_id="block_1", reading_order=0, text="First paragraph")

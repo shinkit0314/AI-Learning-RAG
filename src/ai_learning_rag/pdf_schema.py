@@ -39,6 +39,7 @@ class BlockType(StrEnum):
     CODE = "code"
     HEADER = "header"
     FOOTER = "footer"
+    PRINTED_PAGE_NUMBER = "printed_page_number"
     OTHER = "other"
 
 
@@ -122,6 +123,7 @@ class ParsedBlock:
     bbox: BoundingBox
     reading_order: int
     extraction_method: ExtractionMethod
+    heading_level: int | None = None
     parent_picture_id: str | None = None
     confidence: float | None = None
     warnings: tuple[str, ...] = ()
@@ -135,6 +137,10 @@ class ParsedBlock:
             raise ValueError("block text must not be blank")
         if self.reading_order < 0:
             raise ValueError("reading_order must not be negative")
+        if self.heading_level is not None and self.heading_level < 1:
+            raise ValueError("heading_level must be a positive integer")
+        if self.block_type is not BlockType.HEADING and self.heading_level is not None:
+            raise ValueError("only heading blocks may define heading_level")
         if self.parent_picture_id is not None and not self.parent_picture_id.strip():
             raise ValueError("parent_picture_id must not be blank")
         if self.block_type is BlockType.PICTURE_TEXT and self.parent_picture_id is None:
@@ -382,6 +388,7 @@ class ChunkSourceRegion:
     chunk_content_end: int
     source_text_start: int
     source_text_end: int
+    parent_picture_id: str | None = None
     confidence: float | None = None
     warnings: tuple[str, ...] = ()
 
@@ -400,6 +407,8 @@ class ChunkSourceRegion:
             raise ValueError("source_text_start must not be negative")
         if self.source_text_end <= self.source_text_start:
             raise ValueError("source text range must have positive length")
+        if self.parent_picture_id is not None and not self.parent_picture_id.strip():
+            raise ValueError("source parent_picture_id must not be blank")
         if self.confidence is not None and not 0 <= self.confidence <= 1:
             raise ValueError("source confidence must be between 0 and 1")
 
@@ -522,6 +531,7 @@ def build_traceable_pdf_chunk(
                 chunk_content_end=chunk_content_end,
                 source_text_start=block_slice.source_text_start,
                 source_text_end=block_slice.source_text_end,
+                parent_picture_id=block.parent_picture_id,
                 confidence=block.confidence,
                 warnings=block.warnings,
             )
