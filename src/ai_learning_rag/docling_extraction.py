@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterator, Mapping
+from dataclasses import replace
 from hashlib import sha256
 from importlib.metadata import version
 from pathlib import Path
@@ -104,6 +105,48 @@ def parse_pdf_with_docling(
     )
 
 
+def parse_pdf_page_range_with_docling(
+    source: str | Path,
+    *,
+    page_range: tuple[int, int],
+    do_ocr: bool = False,
+    force_full_page_ocr: bool = False,
+    ocr_language: str = "ch",
+    converter: Any | None = None,
+    file_sha256: str | None = None,
+) -> tuple[ParsedPage, ...]:
+    """Parse one original PDF page range while preserving original page numbers."""
+    source_path = Path(source).resolve()
+    if not source_path.is_file():
+        raise FileNotFoundError(source_path)
+    if source_path.suffix.lower() != ".pdf":
+        raise ValueError("source must be a PDF file")
+    start_page, end_page = page_range
+    if start_page < 1 or end_page < start_page:
+        raise ValueError("page_range must contain positive ordered page numbers")
+    if force_full_page_ocr and not do_ocr:
+        raise ValueError("force_full_page_ocr requires do_ocr=True")
+
+    active_converter = converter or create_docling_converter(
+        do_ocr=do_ocr,
+        force_full_page_ocr=force_full_page_ocr,
+        ocr_language=ocr_language,
+    )
+    result = active_converter.convert(source_path, page_range=page_range)
+    pages = parsed_pages_from_docling(
+        result.document.export_to_dict(),
+        file_sha256=file_sha256 or _file_sha256(source_path),
+        expected_page_numbers=tuple(range(start_page, end_page + 1)),
+        ocr_was_enabled=do_ocr,
+        full_page_ocr_was_enabled=force_full_page_ocr,
+    )
+    status_value = getattr(result.status, "value", str(result.status))
+    if status_value in {"success", "partial_success"}:
+        return pages
+    warning = f"DOCLING_STATUS_{status_value.upper()}"
+    return tuple(replace(page, warnings=page.warnings + (warning,)) for page in pages)
+
+
 def parsed_document_from_docling(
     docling_document: Mapping[str, Any],
     *,
@@ -116,7 +159,59 @@ def parsed_document_from_docling(
 ) -> ParsedDocument:
     """Map an exported Docling document without running model inference."""
     source_path = Path(source).resolve()
-    page_specs = _page_specs(docling_document)
+    pages = parsed_pages_from_docling(
+        docling_document,
+        file_sha256=file_sha256,
+        ocr_was_enabled=ocr_was_enabled,
+        full_page_ocr_was_enabled=full_page_ocr_was_enabled,
+    )
+    all_warnings = list(document_warnings)
+    for page in pages:
+        all_warnings.extend(f"PAGE_{page.page_number}_{warning}" for warning in page.warnings)
+
+    return ParsedDocument(
+        document_id=f"pdf-{file_sha256[:16]}",
+        source=source_path.as_uri(),
+        file_sha256=file_sha256,
+        parser_name="docling",
+        parser_version=parser_version,
+        pages=pages,
+        warnings=tuple(all_warnings),
+    )
+
+
+def parsed_pages_from_docling(
+    docling_document: Mapping[str, Any],
+    *,
+    file_sha256: str,
+    expected_page_numbers: tuple[int, ...] | None = None,
+    ocr_was_enabled: bool = False,
+    full_page_ocr_was_enabled: bool = False,
+) -> tuple[ParsedPage, ...]:
+    """Map a full document or one Docling page range to original PDF page numbers."""
+    raw_page_specs = _page_specs(docling_document, require_start_at_one=False)
+    raw_page_numbers = tuple(sorted(raw_page_specs))
+    if expected_page_numbers is None:
+        expected_page_numbers = tuple(range(1, len(raw_page_numbers) + 1))
+        if raw_page_numbers != expected_page_numbers:
+            raise ValueError("Docling pages must be contiguous and ordered from 1")
+    if len(raw_page_numbers) != len(expected_page_numbers):
+        raise ValueError("Docling page range did not return every requested page")
+    if expected_page_numbers != tuple(
+        range(expected_page_numbers[0], expected_page_numbers[-1] + 1)
+    ):
+        raise ValueError("expected Docling page numbers must form one contiguous range")
+    if raw_page_numbers == expected_page_numbers:
+        page_number_map = {number: number for number in raw_page_numbers}
+    elif raw_page_numbers == tuple(range(1, len(raw_page_numbers) + 1)):
+        page_number_map = dict(zip(raw_page_numbers, expected_page_numbers, strict=True))
+    else:
+        raise ValueError("Docling page numbers do not match the requested range")
+
+    page_specs = {
+        page_number_map[raw_page_number]: dimensions
+        for raw_page_number, dimensions in raw_page_specs.items()
+    }
     item_index = _item_index(docling_document)
     page_blocks: dict[int, list[ParsedBlock]] = defaultdict(list)
     page_warnings: dict[int, list[str]] = defaultdict(list)
@@ -124,6 +219,7 @@ def parsed_document_from_docling(
         docling_document,
         page_specs,
         file_sha256,
+        page_number_map,
     )
     picture_child_ids: dict[str, list[str]] = defaultdict(list)
 
@@ -139,7 +235,8 @@ def parsed_document_from_docling(
             block_warnings.append(f"DOCLING_UNMAPPED_LABEL_{label.upper()}")
 
         for provenance in item.get("prov", ()):
-            page_number = int(provenance["page_no"])
+            raw_page_number = int(provenance["page_no"])
+            page_number = page_number_map.get(raw_page_number)
             if page_number not in page_specs:
                 continue
             page_height = page_specs[page_number][1]
@@ -186,9 +283,8 @@ def parsed_document_from_docling(
                 )
             )
 
-    image_counts = _image_counts(docling_document)
+    image_counts = _image_counts(docling_document, page_number_map)
     pages: list[ParsedPage] = []
-    all_warnings = list(document_warnings)
     for page_number in sorted(page_specs):
         width, height = page_specs[page_number]
         blocks = tuple(page_blocks[page_number])
@@ -232,20 +328,14 @@ def parsed_document_from_docling(
                 image_count=image_counts[page_number],
             )
         )
-        all_warnings.extend(f"PAGE_{page_number}_{warning}" for warning in warnings)
-
-    return ParsedDocument(
-        document_id=f"pdf-{file_sha256[:16]}",
-        source=source_path.as_uri(),
-        file_sha256=file_sha256,
-        parser_name="docling",
-        parser_version=parser_version,
-        pages=tuple(pages),
-        warnings=tuple(all_warnings),
-    )
+    return tuple(pages)
 
 
-def _page_specs(docling_document: Mapping[str, Any]) -> dict[int, tuple[float, float]]:
+def _page_specs(
+    docling_document: Mapping[str, Any],
+    *,
+    require_start_at_one: bool = True,
+) -> dict[int, tuple[float, float]]:
     pages = docling_document.get("pages")
     if not isinstance(pages, Mapping) or not pages:
         raise ValueError("Docling document must contain page metadata")
@@ -256,9 +346,16 @@ def _page_specs(docling_document: Mapping[str, Any]) -> dict[int, tuple[float, f
         size = page["size"]
         page_specs[page_number] = (float(size["width"]), float(size["height"]))
 
-    expected = list(range(1, len(page_specs) + 1))
-    if sorted(page_specs) != expected:
-        raise ValueError("Docling pages must be contiguous and ordered from 1")
+    page_numbers = sorted(page_specs)
+    expected_start = 1 if require_start_at_one else page_numbers[0]
+    expected = list(range(expected_start, expected_start + len(page_specs)))
+    if page_numbers != expected:
+        message = (
+            "Docling pages must be contiguous and ordered from 1"
+            if require_start_at_one
+            else "Docling page range must be contiguous"
+        )
+        raise ValueError(message)
     return page_specs
 
 
@@ -318,6 +415,7 @@ def _picture_specs(
     docling_document: Mapping[str, Any],
     page_specs: Mapping[int, tuple[float, float]],
     file_sha256: str,
+    page_number_map: Mapping[int, int] | None = None,
 ) -> tuple[
     dict[tuple[str, int], str],
     defaultdict[int, list[tuple[str, BoundingBox]]],
@@ -330,7 +428,12 @@ def _picture_specs(
         if not picture_ref:
             continue
         for provenance in picture.get("prov", ()):
-            page_number = int(provenance["page_no"])
+            raw_page_number = int(provenance["page_no"])
+            page_number = (
+                page_number_map.get(raw_page_number)
+                if page_number_map is not None
+                else raw_page_number
+            )
             if page_number not in page_specs:
                 continue
             picture_index = page_indexes[page_number]
@@ -400,11 +503,21 @@ def _top_left_bbox(raw_bbox: Mapping[str, Any], page_height: float) -> BoundingB
     )
 
 
-def _image_counts(docling_document: Mapping[str, Any]) -> defaultdict[int, int]:
+def _image_counts(
+    docling_document: Mapping[str, Any],
+    page_number_map: Mapping[int, int] | None = None,
+) -> defaultdict[int, int]:
     counts: defaultdict[int, int] = defaultdict(int)
     for picture in docling_document.get("pictures", ()):
         for provenance in picture.get("prov", ()):
-            counts[int(provenance["page_no"])] += 1
+            raw_page_number = int(provenance["page_no"])
+            page_number = (
+                page_number_map.get(raw_page_number)
+                if page_number_map is not None
+                else raw_page_number
+            )
+            if page_number is not None:
+                counts[page_number] += 1
     return counts
 
 

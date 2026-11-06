@@ -14,6 +14,8 @@ class PageKind(StrEnum):
     COMPLEX_LAYOUT_TEXT = "complex_layout_text"
     SCANNED_IMAGE = "scanned_image"
     SCANNED_WITH_OCR = "scanned_with_ocr"
+    DAMAGED_TEXT_LAYER = "damaged_text_layer"
+    BLANK = "blank"
     MIXED = "mixed"
 
 
@@ -50,6 +52,35 @@ class ExtractionMethod(StrEnum):
     LAYOUT = "layout"
     EMBEDDED_OCR = "embedded_ocr"
     RERUN_OCR = "rerun_ocr"
+
+
+@dataclass(frozen=True, slots=True)
+class ExtractionProvenance:
+    """Stable identity of the parser or OCR configuration that produced text."""
+
+    id: str
+    parser_name: str
+    parser_version: str
+    extraction_method: ExtractionMethod
+    configuration_profile: str
+    ocr_engine_name: str | None = None
+    ocr_engine_version: str | None = None
+
+    def __post_init__(self) -> None:
+        for field_name, value in (
+            ("id", self.id),
+            ("parser_name", self.parser_name),
+            ("parser_version", self.parser_version),
+            ("configuration_profile", self.configuration_profile),
+        ):
+            if not value.strip():
+                raise ValueError(f"{field_name} must not be blank")
+        if (self.ocr_engine_name is None) != (self.ocr_engine_version is None):
+            raise ValueError("OCR engine name and version must be defined together")
+        if self.ocr_engine_name is not None and not self.ocr_engine_name.strip():
+            raise ValueError("ocr_engine_name must not be blank")
+        if self.ocr_engine_version is not None and not self.ocr_engine_version.strip():
+            raise ValueError("ocr_engine_version must not be blank")
 
 
 class ChunkContentType(StrEnum):
@@ -127,6 +158,7 @@ class ParsedBlock:
     parent_picture_id: str | None = None
     confidence: float | None = None
     warnings: tuple[str, ...] = ()
+    extraction_provenance_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.id.strip():
@@ -147,6 +179,8 @@ class ParsedBlock:
             raise ValueError("picture_text blocks must reference a parent picture")
         if self.confidence is not None and not 0 <= self.confidence <= 1:
             raise ValueError("confidence must be between 0 and 1")
+        if self.extraction_provenance_id is not None and not self.extraction_provenance_id.strip():
+            raise ValueError("extraction_provenance_id must not be blank")
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +216,7 @@ class ParsedPage:
     text_character_count: int = 0
     image_count: int = 0
     image_coverage_ratio: float = 0.0
+    extraction_provenance_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.page_number < 1:
@@ -198,6 +233,8 @@ class ParsedPage:
             raise ValueError("image_coverage_ratio must be finite")
         if not 0 <= self.image_coverage_ratio <= 1:
             raise ValueError("image_coverage_ratio must be between 0 and 1")
+        if self.extraction_provenance_id is not None and not self.extraction_provenance_id.strip():
+            raise ValueError("extraction_provenance_id must not be blank")
         if any(block.page_number != self.page_number for block in self.blocks):
             raise ValueError("every block must reference its containing page")
 
@@ -243,6 +280,8 @@ class ParsedDocument:
     parser_version: str
     pages: tuple[ParsedPage, ...]
     warnings: tuple[str, ...] = ()
+    routing_profile: str = ""
+    extraction_provenances: tuple[ExtractionProvenance, ...] = ()
 
     def __post_init__(self) -> None:
         for field_name, value in (
@@ -264,6 +303,32 @@ class ParsedDocument:
         actual_page_numbers = [page.page_number for page in self.pages]
         if actual_page_numbers != expected_page_numbers:
             raise ValueError("document pages must be contiguous and ordered from 1")
+
+        provenance_ids = [provenance.id for provenance in self.extraction_provenances]
+        if len(provenance_ids) != len(set(provenance_ids)):
+            raise ValueError("extraction provenance ids must be unique")
+        registered_ids = set(provenance_ids)
+        referenced_ids = {
+            provenance_id
+            for page in self.pages
+            for provenance_id in (
+                page.extraction_provenance_id,
+                *(block.extraction_provenance_id for block in page.blocks),
+            )
+            if provenance_id is not None
+        }
+        if not referenced_ids.issubset(registered_ids):
+            raise ValueError("page and block provenance ids must be registered by the document")
+        for page in self.pages:
+            if page.extraction_provenance_id is None:
+                continue
+            if any(
+                block.extraction_provenance_id != page.extraction_provenance_id
+                for block in page.blocks
+            ):
+                raise ValueError("page-level routing requires every block to share page provenance")
+        if self.routing_profile and not self.routing_profile.strip():
+            raise ValueError("routing_profile must not be blank")
 
     @property
     def page_count(self) -> int:
@@ -307,6 +372,7 @@ class ChunkCandidate:
     document_id: str
     block_slices: tuple[ChunkBlockSlice, ...]
     section_path: tuple[str, ...] = ()
+    routing_profile: str = ""
 
     def __post_init__(self) -> None:
         if not self.document_id.strip():
@@ -315,6 +381,8 @@ class ChunkCandidate:
             raise ValueError("chunk candidate must contain at least one block slice")
         if any(not section.strip() for section in self.section_path):
             raise ValueError("section_path entries must not be blank")
+        if self.routing_profile and not self.routing_profile.strip():
+            raise ValueError("routing_profile must not be blank")
         if any(
             block_slice.block.block_type is BlockType.PICTURE_TEXT
             for block_slice in self.block_slices
@@ -335,12 +403,14 @@ class ChunkCandidate:
         document_id: str,
         blocks: tuple[ParsedBlock, ...],
         section_path: tuple[str, ...] = (),
+        routing_profile: str = "",
     ) -> "ChunkCandidate":
         """Create a candidate that uses the complete text of every source block."""
         return cls(
             document_id=document_id,
             block_slices=tuple(ChunkBlockSlice.whole(block) for block in blocks),
             section_path=section_path,
+            routing_profile=routing_profile,
         )
 
     @property
@@ -391,6 +461,7 @@ class ChunkSourceRegion:
     parent_picture_id: str | None = None
     confidence: float | None = None
     warnings: tuple[str, ...] = ()
+    extraction_provenance_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.block_id.strip():
@@ -411,6 +482,8 @@ class ChunkSourceRegion:
             raise ValueError("source parent_picture_id must not be blank")
         if self.confidence is not None and not 0 <= self.confidence <= 1:
             raise ValueError("source confidence must be between 0 and 1")
+        if self.extraction_provenance_id is not None and not self.extraction_provenance_id.strip():
+            raise ValueError("source extraction_provenance_id must not be blank")
 
 
 @dataclass(frozen=True, slots=True)
@@ -427,6 +500,7 @@ class TraceablePdfChunk:
     source_regions: tuple[ChunkSourceRegion, ...]
     section_path: tuple[str, ...] = ()
     warnings: tuple[ChunkWarning, ...] = ()
+    routing_profile: str = ""
 
     def __post_init__(self) -> None:
         if not self.id.strip():
@@ -445,6 +519,8 @@ class TraceablePdfChunk:
             raise ValueError("chunk must contain at least one source region")
         if any(not section.strip() for section in self.section_path):
             raise ValueError("section_path entries must not be blank")
+        if self.routing_profile and not self.routing_profile.strip():
+            raise ValueError("routing_profile must not be blank")
 
         block_ids = [region.block_id for region in self.source_regions]
         if len(block_ids) != len(set(block_ids)):
@@ -534,6 +610,7 @@ def build_traceable_pdf_chunk(
                 parent_picture_id=block.parent_picture_id,
                 confidence=block.confidence,
                 warnings=block.warnings,
+                extraction_provenance_id=block.extraction_provenance_id,
             )
         )
         content_cursor = chunk_content_end
@@ -558,7 +635,13 @@ def build_traceable_pdf_chunk(
         sort_keys=True,
     )
     source_fingerprint = sha256(source_identity.encode()).hexdigest()
-    chunk_identity = f"{chunking_profile}\0{source_fingerprint}"
+    provenance_identity = ",".join(
+        region.extraction_provenance_id or "" for region in source_regions
+    )
+    chunk_identity = (
+        f"{candidate.routing_profile}\0{provenance_identity}\0"
+        f"{chunking_profile}\0{source_fingerprint}"
+    )
     chunk_id = f"pdf_chunk_{sha256(chunk_identity.encode()).hexdigest()[:8]}"
     return TraceablePdfChunk(
         id=chunk_id,
@@ -571,6 +654,7 @@ def build_traceable_pdf_chunk(
         source_regions=tuple(source_regions),
         section_path=candidate.section_path,
         warnings=warnings,
+        routing_profile=candidate.routing_profile,
     )
 
 

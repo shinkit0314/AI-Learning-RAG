@@ -42,24 +42,35 @@ def parse_pdf(source: str | Path) -> ParsedDocument:
     if source_path.suffix.lower() != ".pdf":
         raise ValueError("source must be a PDF file")
 
-    file_sha256 = _file_sha256(source_path)
+    file_sha256 = pdf_file_sha256(source_path)
+
+    with pymupdf.open(source_path) as document:
+        return parsed_document_from_pymupdf(document, source_path, file_sha256)
+
+
+def parsed_document_from_pymupdf(
+    document: pymupdf.Document,
+    source: str | Path,
+    file_sha256: str,
+) -> ParsedDocument:
+    """Map one already-open PyMuPDF document without opening the file again."""
+    source_path = Path(source).resolve()
     document_warnings: list[str] = []
     pages: list[ParsedPage] = []
 
-    with pymupdf.open(source_path) as document:
-        if document.needs_pass:
-            raise ValueError("password-protected PDFs are not supported by this baseline")
+    if document.needs_pass:
+        raise ValueError("password-protected PDFs are not supported by this baseline")
 
-        for page_index, page in enumerate(document):
-            parsed_page = _parse_page(page, page_index + 1, file_sha256)
-            pages.append(parsed_page)
-            document_warnings.extend(
-                f"PAGE_{parsed_page.page_number}_{warning}" for warning in parsed_page.warnings
-            )
-            if parsed_page.status is ParseStatus.NEEDS_OCR:
-                document_warnings.append(f"PAGE_{parsed_page.page_number}_NEEDS_OCR")
-            elif parsed_page.status is ParseStatus.FAILED:
-                document_warnings.append(f"PAGE_{parsed_page.page_number}_PARSE_FAILED")
+    for page_index, page in enumerate(document):
+        parsed_page = _parse_page(page, page_index + 1, file_sha256)
+        pages.append(parsed_page)
+        document_warnings.extend(
+            f"PAGE_{parsed_page.page_number}_{warning}" for warning in parsed_page.warnings
+        )
+        if parsed_page.status is ParseStatus.NEEDS_OCR:
+            document_warnings.append(f"PAGE_{parsed_page.page_number}_NEEDS_OCR")
+        elif parsed_page.status is ParseStatus.FAILED:
+            document_warnings.append(f"PAGE_{parsed_page.page_number}_PARSE_FAILED")
 
     pages = list(_classify_margin_blocks(tuple(pages)))
 
@@ -241,9 +252,13 @@ def _image_coverage_ratio(
     return min(1.0, visible_area / page_rect.get_area())
 
 
-def _file_sha256(path: Path) -> str:
+def pdf_file_sha256(path: Path) -> str:
+    """Return the stable source hash shared by PDF preflight stages."""
     digest = sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+_file_sha256 = pdf_file_sha256

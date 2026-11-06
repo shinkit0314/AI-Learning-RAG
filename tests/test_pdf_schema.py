@@ -11,6 +11,7 @@ from ai_learning_rag.pdf_schema import (
     ChunkSourceRegion,
     ChunkWarning,
     ExtractionMethod,
+    ExtractionProvenance,
     PageKind,
     ParsedBlock,
     ParsedDocument,
@@ -403,6 +404,104 @@ def test_chunking_profile_changes_id_but_not_source_fingerprint() -> None:
 
     assert first.source_fingerprint == second.source_fingerprint
     assert first.id != second.id
+
+
+def test_routing_and_extraction_profiles_change_id_but_not_source_fingerprint() -> None:
+    first_block = ParsedBlock(
+        id="block_1",
+        page_number=1,
+        block_type=BlockType.PARAGRAPH,
+        text="Same source text",
+        bbox=BoundingBox(72, 100, 500, 140),
+        reading_order=0,
+        extraction_method=ExtractionMethod.NATIVE,
+        extraction_provenance_id="pymupdf-native-v1",
+    )
+    second_block = ParsedBlock(
+        id="block_1",
+        page_number=1,
+        block_type=BlockType.PARAGRAPH,
+        text="Same source text",
+        bbox=BoundingBox(72, 100, 500, 140),
+        reading_order=0,
+        extraction_method=ExtractionMethod.NATIVE,
+        extraction_provenance_id="pymupdf-native-v2",
+    )
+    first = build_traceable_pdf_chunk(
+        ChunkCandidate.from_blocks(
+            document_id="doc_pdf",
+            blocks=(first_block,),
+            routing_profile="route-v1",
+        ),
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
+    )
+    second = build_traceable_pdf_chunk(
+        ChunkCandidate.from_blocks(
+            document_id="doc_pdf",
+            blocks=(second_block,),
+            routing_profile="route-v2",
+        ),
+        chunk_index=0,
+        chunking_profile="pdf-structure-v1",
+    )
+
+    assert first.source_fingerprint == second.source_fingerprint
+    assert first.id != second.id
+    assert first.routing_profile == "route-v1"
+    assert first.source_regions[0].extraction_provenance_id == "pymupdf-native-v1"
+
+
+def test_document_validates_page_level_extraction_provenance() -> None:
+    provenance = ExtractionProvenance(
+        id="docling-layout-v1",
+        parser_name="docling",
+        parser_version="2.140.0",
+        extraction_method=ExtractionMethod.LAYOUT,
+        configuration_profile="layout-v1",
+    )
+    block = ParsedBlock(
+        id="block_1",
+        page_number=1,
+        block_type=BlockType.PARAGRAPH,
+        text="Layout text",
+        bbox=BoundingBox(72, 100, 500, 140),
+        reading_order=0,
+        extraction_method=ExtractionMethod.LAYOUT,
+        extraction_provenance_id=provenance.id,
+    )
+    page = ParsedPage(
+        page_number=1,
+        width=612,
+        height=792,
+        kind=PageKind.COMPLEX_LAYOUT_TEXT,
+        status=ParseStatus.PARSED,
+        blocks=(block,),
+        extraction_provenance_id=provenance.id,
+    )
+    document = ParsedDocument(
+        document_id="doc_pdf",
+        source="file:///layout.pdf",
+        file_sha256="a" * 64,
+        parser_name="pdf-auto-router",
+        parser_version="pdf-page-routing-v1",
+        pages=(page,),
+        routing_profile="route-v1",
+        extraction_provenances=(provenance,),
+    )
+
+    assert document.extraction_provenances == (provenance,)
+
+    with pytest.raises(ValueError, match="must be registered"):
+        ParsedDocument(
+            document_id="doc_pdf",
+            source="file:///layout.pdf",
+            file_sha256="a" * 64,
+            parser_name="pdf-auto-router",
+            parser_version="pdf-page-routing-v1",
+            pages=(page,),
+            routing_profile="route-v1",
+        )
 
 
 def test_finished_chunk_id_changes_with_source_identity() -> None:

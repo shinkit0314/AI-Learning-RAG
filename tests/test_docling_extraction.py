@@ -1,6 +1,9 @@
 """Tests for mapping Docling output into the shared PDF schema."""
 
-from ai_learning_rag.docling_extraction import parsed_document_from_docling
+from ai_learning_rag.docling_extraction import (
+    parsed_document_from_docling,
+    parsed_pages_from_docling,
+)
 from ai_learning_rag.pdf_schema import BlockType, ExtractionMethod, PageKind, ParseStatus
 
 
@@ -216,3 +219,15 @@ def test_full_page_ocr_is_marked_as_rerun_ocr_on_scanned_pages() -> None:
         for page in document.pages
         for block in page.blocks
     )
+
+
+def test_docling_page_range_can_map_back_to_original_page_numbers() -> None:
+    pages = parsed_pages_from_docling(
+        _docling_fixture(),
+        file_sha256="a" * 64,
+        expected_page_numbers=(4, 5),
+    )
+
+    assert [page.page_number for page in pages] == [4, 5]
+    assert all(block.page_number == page.page_number for page in pages for block in page.blocks)
+    assert pages[0].blocks[0].id.startswith("aaaaaaaaaaaa-docling-p0004")

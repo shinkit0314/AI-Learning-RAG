@@ -41,6 +41,10 @@ _BODY_BLOCK_TYPES = frozenset({BlockType.PARAGRAPH, BlockType.LIST_ITEM})
 _ALLOWED_PAGE_WARNINGS = frozenset(
     {
         "EMBEDDED_OCR_TEXT_LAYER",
+        "EMBEDDED_OCR_VERIFIED",
+        "RERUN_OCR_REPLACED_BROKEN_TEXT_LAYER",
+        "MANUAL_REVIEW_ACCEPTED_EMBEDDED_OCR",
+        "MANUAL_REVIEW_ACCEPTED_RERUN_OCR",
         "DOCLING_INVALID_BBOX",
         "DOCLING_PICTURE_PARENT_MISSING",
     }
@@ -443,6 +447,7 @@ def prepare_pdf_document(document: ParsedDocument) -> PdfChunkPreparationResult:
                 document_id=document.document_id,
                 blocks=candidate_blocks,
                 section_path=section.path,
+                routing_profile=document.routing_profile,
             )
             source_warnings = (
                 pending_warnings
@@ -538,6 +543,7 @@ def split_oversized_body_units(
                     prefix_slices + (split_slice,) if slice_index == 0 else (split_slice,)
                 ),
                 section_path=unit.candidate.section_path,
+                routing_profile=unit.candidate.routing_profile,
             )
             units.append(
                 PreparedChunkUnit(
@@ -723,6 +729,7 @@ def split_oversized_table_units(
                 document_id=unit.candidate.document_id,
                 block_slices=(split_slice,),
                 section_path=unit.candidate.section_path,
+                routing_profile=unit.candidate.routing_profile,
             )
             output.append(
                 PreparedChunkUnit(
@@ -871,6 +878,7 @@ def split_oversized_code_units(
                 document_id=unit.candidate.document_id,
                 block_slices=(split_slice,),
                 section_path=unit.candidate.section_path,
+                routing_profile=unit.candidate.routing_profile,
             )
             output.append(
                 PreparedChunkUnit(
@@ -1138,6 +1146,7 @@ def _compose_units(units: tuple[PreparedChunkUnit, ...]) -> PreparedChunkUnit:
             block_slice for unit in units for block_slice in unit.candidate.block_slices
         ),
         section_path=first.candidate.section_path,
+        routing_profile=first.candidate.routing_profile,
     )
     return PreparedChunkUnit(
         candidate=candidate,
@@ -1197,6 +1206,7 @@ def _overlap_seed(
         document_id=previous.candidate.document_id,
         block_slices=(body_slice,),
         section_path=previous.candidate.section_path,
+        routing_profile=previous.candidate.routing_profile,
     )
     if len(candidate.content) + 1 + len(following.candidate.content) > config.hard_max_size:
         return None
