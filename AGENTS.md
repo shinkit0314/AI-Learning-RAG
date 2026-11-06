@@ -1,5 +1,18 @@
 # AI-Learning-RAG agent guidance
 
+## Conversation startup and roadmap
+
+- At the start of every new conversation, read `docs/DEVELOPMENT_ROADMAP.md` completely before
+  proposing, designing, or implementing project work.
+- Use the roadmap to explain the current milestone, the active stage, its prerequisites, and the
+  next expected stage. Do not rely only on the most recent learning document or branch name.
+- Treat planned branch names as reservations only. Create a stage branch only after the previous
+  stage has passed manual acceptance and has been merged into the latest `develop`.
+- If the repository state, user request, and roadmap disagree, stop implementation, explain the
+  mismatch, and update the roadmap only after the user confirms the direction.
+- Keep `docs/DEVELOPMENT_ROADMAP.md`, `README.md`, and `docs/PROJECT_REQUIREMENTS.md` aligned when a
+  stage changes status or the development order changes.
+
 ## Environment
 
 - The project uses Python 3.12 and uv. `uv.lock` is the reproducible dependency baseline.

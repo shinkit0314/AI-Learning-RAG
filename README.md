@@ -4,6 +4,7 @@
 
 ## 项目文档
 
+- [整体开发路线图](docs/DEVELOPMENT_ROADMAP.md)
 - [项目目标与需求](docs/PROJECT_REQUIREMENTS.md)
 - [环境准备指南](docs/ENVIRONMENT_SETUP.md)
 - [学习 01：工程基线](docs/learning/01-engineering-baseline.md)
@@ -22,16 +23,18 @@
 
 ## 当前进度
 
-第一个里程碑“工程基线”和第二个里程碑“最小 RAG 闭环”已经通过验收。PDF 知识库阶段
-已经完成三类样本的解析基线、可追溯 Chunk 输出契约、结构感知切分器，以及页面级 PDF Parser
-自动路由 v1 的实现。自动路由先用 PyMuPDF 做轻量诊断，再按页面选择 PyMuPDF、Docling 或
-RapidOCR，并保留逐页 route reason、失败尝试和 Extraction provenance。当前等待自动质量门禁和
-真实 Docling/OCR 结果的最终人工验收；隐藏 OCR 冲突支持逐页、可审计的人工选择。尚未把 PDF
-Chunk 接入 Embedding、向量数据库或检索流程。
+第一个里程碑“工程基线”、第二个里程碑“最小 RAG 闭环”，以及 PDF 知识库的解析与切分阶段
+已经通过验收。页面级 PDF Parser 自动路由 v1 会先用 PyMuPDF 做轻量诊断，再按页面选择
+PyMuPDF、Docling 或 RapidOCR，并保留逐页 route reason、失败尝试和 Extraction provenance；隐藏
+OCR 冲突支持逐页、可审计且 fail-closed 的人工选择。
+
+全项目开发路线图已经通过人工验收；合入 `develop` 后将恢复“可追溯 PDF Chunk 索引接入 v1”：将已经验收的
+`TraceablePdfChunk` 接入 Embedding、持久化向量索引和检索流程，并保留回到原 PDF 页面的完整
+provenance。详细阶段顺序、计划分支和验收出口见[整体开发路线图](docs/DEVELOPMENT_ROADMAP.md)。
 
 切分器接收 Parser 无关的 `ParsedDocument`，支持章节路径、正文组合、跨页处理、可追溯超长 block
-切片，以及表格、公式、图注、代码和未知内容的隔离策略。Embedding 接入仍将作为后续独立阶段
-设计。
+切片，以及表格、公式、图注、代码和未知内容的隔离策略。Embedding 与索引接入仍作为独立阶段
+逐项设计，不会与 OCR 路由、重排器、UI 或部署混在同一分支中。
 
 ## 环境要求
 
