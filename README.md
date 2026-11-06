@@ -18,16 +18,20 @@
 - [学习 10：PDF 解析路由决策](docs/learning/10-pdf-routing-decision.md)
 - [学习 11：可追溯 PDF Chunk 输出契约](docs/learning/11-pdf-chunk-contract.md)
 - [学习 12：结构感知 PDF 切分](docs/learning/12-pdf-structure-aware-chunking.md)
+- [学习 13：PDF Parser 自动路由 v1](docs/learning/13-pdf-page-routing.md)
 
 ## 当前进度
 
 第一个里程碑“工程基线”和第二个里程碑“最小 RAG 闭环”已经通过验收。PDF 知识库阶段
-已经完成三类样本的解析基线、路由决策、可追溯 Chunk 输出契约和结构感知切分器。当前正在进行
-结构感知切分阶段的文档与人工验收，尚未把 PDF Chunk 接入 Embedding、向量数据库或检索流程。
+已经完成三类样本的解析基线、可追溯 Chunk 输出契约、结构感知切分器，以及页面级 PDF Parser
+自动路由 v1 的实现。自动路由先用 PyMuPDF 做轻量诊断，再按页面选择 PyMuPDF、Docling 或
+RapidOCR，并保留逐页 route reason、失败尝试和 Extraction provenance。当前等待自动质量门禁和
+真实 Docling/OCR 结果的最终人工验收；隐藏 OCR 冲突支持逐页、可审计的人工选择。尚未把 PDF
+Chunk 接入 Embedding、向量数据库或检索流程。
 
 切分器接收 Parser 无关的 `ParsedDocument`，支持章节路径、正文组合、跨页处理、可追溯超长 block
-切片，以及表格、公式、图注、代码和未知内容的隔离策略。OCR 质量门控和 Embedding 接入将作为
-后续独立阶段设计。
+切片，以及表格、公式、图注、代码和未知内容的隔离策略。Embedding 接入仍将作为后续独立阶段
+设计。
 
 ## 环境要求
 
@@ -63,6 +67,42 @@ uv run python scripts/pdf_chunking_preview.py data/PDF/native.pdf data/PDF/layou
 预览结果写入被 Git 忽略的 `output/pdf-chunking-preview/`，同时包含完整 JSON 和便于阅读的
 Markdown。这个命令使用 PyMuPDF 基线，扫描样例会读取已有隐藏 OCR 层；它不会自动运行或比较
 RapidOCR/PaddleOCR。
+
+生成不会加载 Docling/OCR 模型的页面路由诊断预览：
+
+```powershell
+uv run python scripts/pdf_routing_preview.py data/PDF/native.pdf data/PDF/layout.pdf data/PDF/scan.pdf
+```
+
+确认本地模型已经可用后，显式运行完整页面路由预览：
+
+```powershell
+uv run python scripts/pdf_routing_preview.py --run-parsers data/PDF/native.pdf data/PDF/layout.pdf data/PDF/scan.pdf
+```
+
+完整路由结果写入 `output/pdf-routing-preview/`。未添加 `--run-parsers` 时只生成信号、阈值和路线
+决策，不运行 Docling 或 OCR，也不会触发模型下载。
+
+为隐藏 OCR 冲突生成只读证据和可编辑决定文件：
+
+```powershell
+uv run python scripts/pdf_ocr_review.py generate data/PDF/scan.pdf
+```
+
+人工只修改 `output/pdf-routing-preview/scan.ocr-decisions.json` 中的 `decision` 和
+`review_note`，然后应用决定：
+
+```powershell
+uv run python scripts/pdf_ocr_review.py apply data/PDF/scan.pdf
+```
+
+人工选择通过后，可以直接生成结构感知 Chunk：
+
+```powershell
+uv run python scripts/pdf_chunking_preview.py --auto-route `
+  --ocr-review-decisions output/pdf-routing-preview/scan.ocr-decisions.json `
+  data/PDF/scan.pdf
+```
 
 启动开发服务器：
 

@@ -327,6 +327,25 @@ def test_known_warnings_are_accepted_and_bound_to_source_blocks() -> None:
     assert ChunkingDiagnosticCode.UNSUPPORTED_CONTENT_TYPE in diagnostic_codes(result)
 
 
+@pytest.mark.parametrize(
+    "warning",
+    [
+        "EMBEDDED_OCR_VERIFIED",
+        "RERUN_OCR_REPLACED_BROKEN_TEXT_LAYER",
+        "MANUAL_REVIEW_ACCEPTED_EMBEDDED_OCR",
+        "MANUAL_REVIEW_ACCEPTED_RERUN_OCR",
+    ],
+)
+def test_accepted_auto_routing_warning_can_continue_to_chunking(warning: str) -> None:
+    body = make_block("body", 0, BlockType.PARAGRAPH, "Reviewed OCR text")
+
+    result = prepare_pdf_document(make_document(make_page(1, body, warnings=(warning,))))
+
+    assert len(result.units) == 1
+    assert result.units[0].warnings[0].code == warning
+    assert ChunkingDiagnosticCode.UNKNOWN_PAGE_WARNING not in diagnostic_codes(result)
+
+
 def test_page_warnings_remain_bound_to_blocks_from_their_own_page() -> None:
     heading = make_block("heading", 0, BlockType.HEADING, "1 Introduction")
     body = make_block(
