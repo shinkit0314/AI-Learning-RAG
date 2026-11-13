@@ -5,6 +5,7 @@ description = "A beginner-friendly project for learning and building a RAG syste
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "alembic>=1.14,<2.0",
     "docling>=2.139.0,<3.0.0",
     "fastapi>=0.115.0,<1.0.0",
     "onnxruntime>=1.31.0",
@@ -40,6 +41,9 @@ build-backend = "hatchling.build"
 addopts = "-ra --strict-config --strict-markers"
 filterwarnings = ["error"]
 testpaths = ["tests"]
+markers = [
+    "postgres_integration: explicit tests that require a migrated pgvector test database",
+]
 
 [tool.ruff]
 line-length = 100

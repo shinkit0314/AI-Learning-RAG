@@ -1,5 +1,6 @@
 """Unit tests for the local embedding boundary."""
 
+from collections import UserDict
 from typing import Any
 
 import pytest
@@ -14,10 +15,42 @@ class FakeEncoderModel:
         self.dimension = dimension
         self.max_seq_length = 0
         self.calls: list[tuple[list[str], dict[str, Any]]] = []
+        self.tokenizer = FakeTokenizer()
 
     def encode(self, inputs: list[str], **kwargs: Any) -> list[list[float]]:
         self.calls.append((inputs, kwargs))
         return [[float(index) for index in range(self.dimension)] for _ in inputs]
+
+
+class FakeTokenizer:
+    """Expose untruncated token IDs without any external model dependency."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, bool, bool]] = []
+
+    def __call__(
+        self,
+        text: str,
+        *,
+        add_special_tokens: bool,
+        truncation: bool,
+    ) -> dict[str, list[int]]:
+        self.calls.append((text, add_special_tokens, truncation))
+        return {"input_ids": [101, *range(len(text.split())), 102]}
+
+
+class BatchEncodingLikeTokenizer(FakeTokenizer):
+    """Mimic Transformers' mapping-based BatchEncoding return type."""
+
+    def __call__(
+        self,
+        text: str,
+        *,
+        add_special_tokens: bool,
+        truncation: bool,
+    ) -> UserDict[str, list[int]]:
+        self.calls.append((text, add_special_tokens, truncation))
+        return UserDict({"input_ids": [101, *range(len(text.split())), 102]})
 
 
 def test_query_uses_retrieval_prompt_and_normalized_vectors() -> None:
@@ -66,6 +99,49 @@ def test_empty_document_batch_needs_no_model_call() -> None:
 
     assert embedder.embed_documents([]) == []
     assert model.calls == []
+
+
+def test_token_count_disables_truncation_before_index_gate() -> None:
+    """The indexing gate needs the real full length, not an already-clipped count."""
+
+    config = EmbeddingConfig(dimension=32, max_sequence_length=3)
+    model = FakeEncoderModel(dimension=config.dimension)
+    embedder = Qwen3Embedder(config, model=model)
+
+    count = embedder.count_tokens("one two three four")
+
+    assert count == 6
+    assert model.tokenizer.calls == [("one two three four", True, False)]
+
+
+def test_token_count_accepts_transformers_mapping_payload() -> None:
+    """Transformers returns BatchEncoding, a Mapping that is not a plain dict."""
+
+    config = EmbeddingConfig(dimension=32)
+    model = FakeEncoderModel(dimension=config.dimension)
+    model.tokenizer = BatchEncodingLikeTokenizer()
+    embedder = Qwen3Embedder(config, model=model)
+
+    assert embedder.count_tokens("one two") == 4
+
+
+def test_embedding_identity_settings_are_explicit_and_pinned() -> None:
+    """Production manifests must not infer revision or precision from runtime state."""
+
+    config = EmbeddingConfig()
+
+    assert len(config.model_revision) == 40
+    assert config.tokenizer_revision == config.model_revision
+    assert config.dtype == "float16"
+    assert config.normalize_embeddings is True
+    assert config.query_profile == "qwen-query-prompt-v1"
+
+
+def test_unsupported_embedding_dtype_is_rejected() -> None:
+    """A misspelled precision must fail before model loading changes vector values."""
+
+    with pytest.raises(ValueError, match="dtype must be"):
+        EmbeddingConfig(dtype="fp16")
 
 
 @pytest.mark.parametrize("text", ["", "   ", "\n\t"])

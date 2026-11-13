@@ -3,11 +3,11 @@
 > 本文档是所有新对话的项目导航入口。开始设计或编码前，必须先完整阅读本文档，再结合
 > `docs/PROJECT_REQUIREMENTS.md`、当前阶段学习文档和 Git 状态确认实际进度。
 
-- 路线图版本：`0.1`
-- 最近更新日期：2026-11-06
+- 路线图版本：`0.2`
+- 最近更新日期：2026-11-13
 - 当前里程碑：PDF 可检索知识库
-- 当前文档阶段：整体开发路线图
-- 下一功能阶段：可追溯 PDF Chunk 索引接入 v1
+- 当前开发阶段：可追溯 PDF Chunk 索引接入 v1
+- 下一计划阶段：PDF 证据生成与页级引用
 
 ## 1. 这份路线图解决什么问题
 
@@ -43,8 +43,9 @@
   -> API / UI / 部署
 ~~~
 
-当前位于 `Chunk 质量门禁 -> Embedding -> 向量与元数据索引 -> Query 检索`。PDF 上游已经能够输出
-`TraceablePdfChunk`，但它还没有进入持久化索引，也没有形成带 PDF 页级回溯的检索结果。
+当前位于 `Chunk 质量门禁 -> Embedding -> 向量与元数据索引 -> Query 检索`。PDF 上游输出的
+`TraceablePdfChunk` 已完成 PostgreSQL/pgvector 持久化与真实 Top-K 预览，正在汇总阶段材料并
+准备人工验收出口。
 
 ## 3. 阶段和分支规则
 
@@ -128,12 +129,17 @@
 
 | 顺序 | 阶段 | 计划分支 | 状态 | 主要完成条件 |
 | ---: | --- | --- | --- | --- |
-| 4.0 | 建立整体开发路线图 | `codex/development-roadmap` | 人工验收通过 | 所有新对话先读取路线图，阶段、分支和验收出口清晰 |
-| 4.1 | 可追溯 PDF Chunk 索引接入 v1 | `codex/pdf-chunk-indexing` | 设计中，等待路线图合并后恢复 | 准入门禁、幂等索引、文档替换、持久化检索和完整 provenance 返回 |
+| 4.0 | 建立整体开发路线图 | `codex/development-roadmap` | 已合并 | 所有新对话先读取路线图，阶段、分支和验收出口清晰 |
+| 4.1 | 可追溯 PDF Chunk 索引接入 v1 | `codex/pdf-chunk-indexing` | 人工验收通过 | 准入门禁、幂等索引、文档替换、持久化检索和完整 provenance 返回 |
 | 4.2 | PDF 证据生成与页级引用 | `codex/pdf-grounded-generation` | 计划 | 检索结果能形成证据，答案引用可回到 PDF 页和 bbox |
 
 阶段 4.1 同时建立 `native.pdf`、`layout.pdf` 和 `scan.pdf` 的检索 JSON/Markdown 人工预览；不在该
 阶段加入混合检索、重排器、答案 UI 或生产部署。
+
+阶段 4.1 的已确认技术契约、生产补强项和验收边界见
+[阶段 4.1 设计文档](design/04-01-pdf-chunk-indexing.md)。
+实际实现、难点和真实检索结果见
+[学习 14：可追溯 PDF 索引与检索](learning/14-pdf-chunk-indexing-and-retrieval.md)。
 
 ### 里程碑 5：检索评估与质量提升
 
@@ -192,20 +198,20 @@ PDF 索引 v1 会先实现其自身所需的幂等和替换语义；7.1 再将�
 - 隐藏 OCR 冲突的 fail-closed 人工复核；
 - `TraceablePdfChunk` 的稳定身份和页级来源区域。
 
-### 正在进行
+### 人工验收已通过，等待提交授权
 
-- `codex/development-roadmap` 已于 2026-11-06 通过自动检查和人工验收，等待用户批准提交与 PR；
-- `codex/pdf-chunk-indexing` 已创建但未编码，保持暂停，等待路线图先合入 `develop`。
+- `codex/development-roadmap` 已通过 PR #8 合入 `develop`；
+- `codex/pdf-chunk-indexing` 已完成主要实现、离线质量门禁、PostgreSQL 集成验证和真实 PDF
+  Top-K 预览；最终自动门禁为 Ruff 格式检查通过、Ruff 静态检查通过、225 项测试通过且 1 项
+  显式 PostgreSQL 集成测试按设计跳过，并已于 2026-11-13 通过人工验收。阶段总结见
+  [学习 14](learning/14-pdf-chunk-indexing-and-retrieval.md)。
 
 ### 下一步
 
-路线图通过自动检查和人工验收并合入后：
-
-1. 更新本地 `develop`；
-2. 让尚未产生代码提交的 `codex/pdf-chunk-indexing` 跟上最新 `develop`；
-3. 恢复第一个设计问题：索引后端与抽象边界；
-4. 逐个确认准入门禁、索引身份、文档替换和真实 PDF 评测；
-5. 汇总设计与验收标准，等待用户明确批准后再编码。
+1. 审核并确认阶段 4.1 的最终提交范围；
+2. 经用户明确批准后 commit、push 并创建以 `develop` 为 base 的 PR；
+3. PR 合入 `develop` 后，从最新 `develop` 开始阶段 4.2 的设计确认；
+4. 使用检索结果实现受证据约束的生成与 PDF 页级引用。
 
 ## 6. 每阶段的统一完成定义
 
