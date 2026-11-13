@@ -20,6 +20,7 @@
 - [学习 11：可追溯 PDF Chunk 输出契约](docs/learning/11-pdf-chunk-contract.md)
 - [学习 12：结构感知 PDF 切分](docs/learning/12-pdf-structure-aware-chunking.md)
 - [学习 13：PDF Parser 自动路由 v1](docs/learning/13-pdf-page-routing.md)
+- [学习 14：可追溯 PDF 索引与检索](docs/learning/14-pdf-chunk-indexing-and-retrieval.md)
 
 ## 当前进度
 
@@ -28,9 +29,14 @@
 PyMuPDF、Docling 或 RapidOCR，并保留逐页 route reason、失败尝试和 Extraction provenance；隐藏
 OCR 冲突支持逐页、可审计且 fail-closed 的人工选择。
 
-全项目开发路线图已经通过人工验收；合入 `develop` 后将恢复“可追溯 PDF Chunk 索引接入 v1”：将已经验收的
-`TraceablePdfChunk` 接入 Embedding、持久化向量索引和检索流程，并保留回到原 PDF 页面的完整
-provenance。详细阶段顺序、计划分支和验收出口见[整体开发路线图](docs/DEVELOPMENT_ROADMAP.md)。
+全项目开发路线图已经通过人工验收并合入 `develop`。“可追溯 PDF Chunk 索引接入 v1”已经将
+验收过的 `TraceablePdfChunk` 接入 Embedding、持久化向量索引和检索流程，并保留回到原 PDF
+页面的完整 provenance；自动检查和人工验收均已通过，当前等待提交与 PR 授权。详细阶段顺序见
+[整体开发路线图](docs/DEVELOPMENT_ROADMAP.md)，
+本阶段的已确认数据模型、事务边界和验收标准见
+[阶段 4.1 设计文档](docs/design/04-01-pdf-chunk-indexing.md)。
+本地数据库和显式集成测试准备步骤见
+[PostgreSQL 与 pgvector 本地验证](docs/POSTGRES_SETUP.md)。
 
 切分器接收 Parser 无关的 `ParsedDocument`，支持章节路径、正文组合、跨页处理、可追溯超长 block
 切片，以及表格、公式、图注、代码和未知内容的隔离策略。Embedding 与索引接入仍作为独立阶段

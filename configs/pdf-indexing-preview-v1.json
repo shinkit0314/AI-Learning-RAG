@@ -1,0 +1,44 @@
+{
+  "schema_version": "pdf-indexing-preview-v1",
+  "logical_index_name": "pdf-knowledge-base-v1",
+  "routing_config": "configs/pdf-routing-v1.json",
+  "routing_cache_dir": "output/pdf-routing-cache",
+  "samples": [
+    {
+      "sample_id": "native-001",
+      "path": "data/PDF/native.pdf"
+    },
+    {
+      "sample_id": "layout-001",
+      "path": "data/PDF/layout.pdf"
+    },
+    {
+      "sample_id": "scan-001",
+      "path": "data/PDF/scan.pdf",
+      "ocr_review_decisions": "output/pdf-routing-preview/scan.ocr-decisions.json"
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "native-expected-return",
+      "query": "強化学習の目的関数として期待収益はどのように定義されますか？",
+      "expected_sample_id": "native-001",
+      "expected_pages": [6],
+      "top_k": 5
+    },
+    {
+      "query_id": "layout-agent-characteristics",
+      "query": "What are the core characteristics of AI Agents?",
+      "expected_sample_id": "layout-001",
+      "expected_pages": [4],
+      "top_k": 5
+    },
+    {
+      "query_id": "scan-scalability-maintainability",
+      "query": "可扩展性和可维护性分别意味着什么？",
+      "expected_sample_id": "scan-001",
+      "expected_pages": [4],
+      "top_k": 5
+    }
+  ]
+}
