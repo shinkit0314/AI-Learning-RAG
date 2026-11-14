@@ -41,6 +41,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+deepseek-generation = [
+    { name = "openai" },
+]
 local-embedding = [
     { name = "sentence-transformers" },
     { name = "torch" },
@@ -64,6 +67,7 @@ requires-dist = [
     { name = "docling", specifier = ">=2.139.0,<3.0.0" },
     { name = "fastapi", specifier = ">=0.115.0,<1.0.0" },
     { name = "onnxruntime", specifier = ">=1.31.0" },
+    { name = "openai", marker = "extra == 'deepseek-generation'", specifier = ">=2.0.0,<3.0.0" },
     { name = "openai", marker = "extra == 'openai-generation'", specifier = ">=2.0.0,<3.0.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4.0" },
     { name = "pymupdf", specifier = ">=1.28.2,<2.0.0" },
@@ -72,7 +76,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'local-embedding'", specifier = ">=2.7.1,<2.15.0", index = "https://download.pytorch.org/whl/cu126" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0,<1.0.0" },
 ]
-provides-extras = ["local-embedding", "openai-generation"]
+provides-extras = ["deepseek-generation", "local-embedding", "openai-generation"]
 
 [package.metadata.requires-dev]
 dev = [

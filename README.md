@@ -21,6 +21,7 @@
 - [学习 12：结构感知 PDF 切分](docs/learning/12-pdf-structure-aware-chunking.md)
 - [学习 13：PDF Parser 自动路由 v1](docs/learning/13-pdf-page-routing.md)
 - [学习 14：可追溯 PDF 索引与检索](docs/learning/14-pdf-chunk-indexing-and-retrieval.md)
+- [学习 15：PDF 证据生成与页级引用](docs/learning/15-pdf-grounded-generation.md)
 
 ## 当前进度
 
@@ -31,16 +32,20 @@ OCR 冲突支持逐页、可审计且 fail-closed 的人工选择。
 
 全项目开发路线图已经通过人工验收并合入 `develop`。“可追溯 PDF Chunk 索引接入 v1”已经将
 验收过的 `TraceablePdfChunk` 接入 Embedding、持久化向量索引和检索流程，并保留回到原 PDF
-页面的完整 provenance；自动检查和人工验收均已通过，当前等待提交与 PR 授权。详细阶段顺序见
+页面的完整 provenance；自动检查和人工验收均已通过，并已通过 PR #9 合入 `develop`。“PDF
+证据生成与页级引用”已经完成自然语言查询适配、Top-K Evidence 组织、DeepSeek 受约束生成和
+page/block/bbox Citation，自动检查与真实模型人工验收均已通过，当前在
+`codex/pdf-grounded-generation` 分支等待发布授权。详细阶段顺序见
 [整体开发路线图](docs/DEVELOPMENT_ROADMAP.md)，
-本阶段的已确认数据模型、事务边界和验收标准见
+阶段 4.1 的已确认数据模型、事务边界和验收标准见
 [阶段 4.1 设计文档](docs/design/04-01-pdf-chunk-indexing.md)。
 本地数据库和显式集成测试准备步骤见
 [PostgreSQL 与 pgvector 本地验证](docs/POSTGRES_SETUP.md)。
 
 切分器接收 Parser 无关的 `ParsedDocument`，支持章节路径、正文组合、跨页处理、可追溯超长 block
-切片，以及表格、公式、图注、代码和未知内容的隔离策略。Embedding 与索引接入仍作为独立阶段
-逐项设计，不会与 OCR 路由、重排器、UI 或部署混在同一分支中。
+切片，以及表格、公式、图注、代码和未知内容的隔离策略。Embedding、持久化索引和检索已经作为
+独立阶段完成；受证据约束的 PDF 答案生成与页级引用也已完成人工验收。阶段 4.2 合入 `develop`
+后，下一阶段先建立检索评估基线，不会直接凭主观印象加入重排器。
 
 ## 环境要求
 
@@ -91,6 +96,15 @@ uv run python scripts/pdf_routing_preview.py --run-parsers data/PDF/native.pdf d
 
 完整路由结果写入 `output/pdf-routing-preview/`。未添加 `--run-parsers` 时只生成信号、阈值和路线
 决策，不运行 Docling 或 OCR，也不会触发模型下载。
+
+完成本地 Embedding、DeepSeek SDK、PostgreSQL 和 `.env` 准备后，显式运行 PDF 证据生成预览：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_pdf_grounded_generation_preview.ps1
+```
+
+该命令会把选中的 PDF Evidence 发送给 DeepSeek，可能产生 API 费用；JSON 和 Markdown 报告写入
+`output/pdf-grounded-generation-preview/`。
 
 为隐藏 OCR 冲突生成只读证据和可编辑决定文件：
 
