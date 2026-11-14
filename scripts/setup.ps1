@@ -1,6 +1,7 @@
 param(
     [switch]$WithLocalEmbedding,
-    [switch]$WithOpenAI
+    [switch]$WithOpenAI,
+    [switch]$WithDeepSeek
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,6 +32,10 @@ try {
     if ($WithOpenAI) {
         $syncArguments += @("--extra", "openai-generation")
         Write-Host "      Including the optional OpenAI generation dependency."
+    }
+    if ($WithDeepSeek) {
+        $syncArguments += @("--extra", "deepseek-generation")
+        Write-Host "      Including the DeepSeek-compatible official OpenAI SDK dependency."
     }
 
     & $uvExecutable @syncArguments

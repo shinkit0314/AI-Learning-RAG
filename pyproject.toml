@@ -23,6 +23,9 @@ local-embedding = [
 openai-generation = [
     "openai>=2.0.0,<3.0.0",
 ]
+deepseek-generation = [
+    "openai>=2.0.0,<3.0.0",
+]
 
 [dependency-groups]
 dev = [

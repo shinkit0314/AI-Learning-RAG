@@ -63,6 +63,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1 -WithLocal
 
 `-WithOpenAI` 只安装官方 Python SDK，不会读取 API Key，也不会自动发出付费请求。
 
+阶段 4.2 使用本地 Embedding 与 DeepSeek 生成层，运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1 -WithLocalEmbedding -WithDeepSeek
+```
+
+`-WithDeepSeek` 安装 DeepSeek 官方兼容的 OpenAI Python SDK。它不会自动发出请求。真实预览只读取
+当前 PowerShell 会话或项目根目录 `.env` 中的 `DEEPSEEK_API_KEY`；官方 Base URL 已内置，只有代理或
+私有网关才需要设置可选的 `DEEPSEEK_BASE_URL`。
+
 成功时应看到类似输出：
 
 ```text
