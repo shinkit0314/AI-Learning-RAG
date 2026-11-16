@@ -1,0 +1,273 @@
+{
+  "schema_version": "pdf-retrieval-evaluation-v1",
+  "dataset_id": "pdf-retrieval-pilot",
+  "dataset_version": "1.0.0",
+  "corpus": {
+    "corpus_id": "pdf-sample-corpus-v1",
+    "samples": [
+      {
+        "sample_id": "layout-001",
+        "path": "data\\PDF\\layout.pdf",
+        "document_id": "pdf-bbf8a22582738d49",
+        "file_sha256": "bbf8a22582738d49f3428286117c0613b6cd378c5da2d08152036bf50cf52e5e"
+      },
+      {
+        "sample_id": "native-001",
+        "path": "data\\PDF\\native.pdf",
+        "document_id": "pdf-cdb8c8d333c4c3e9",
+        "file_sha256": "cdb8c8d333c4c3e9ac0f2547b67ebebe646a33ef6be83b587cb6602cb6ab40d9"
+      },
+      {
+        "sample_id": "scan-001",
+        "path": "data\\PDF\\scan.pdf",
+        "document_id": "pdf-faa7142213568a56",
+        "file_sha256": "faa7142213568a56a613345f884e35759ee68455558e99136bc2c2f1fb2a23b7"
+      }
+    ],
+    "chunking_profile": "pdf-structure-v1;length=characters;target=400;hard_max=600;overlap_percent=20",
+    "gate_profile": "pdf-index-gate-v1",
+    "chunk_count": 87,
+    "chunk_set_fingerprint": "4f057af5e74ce1be7b4f2cb3b04b26a7f747eb712ddaf30b5af56066b57b2469"
+  },
+  "metrics": {
+    "recall_ks": [1, 3, 5],
+    "mrr_k": 5
+  },
+  "cases": [
+    {
+      "query_id": "native-markov-property",
+      "query": "マルコフ決定過程の重要な性質であるマルコフ性とは何ですか？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-cdb8c8d333c4c3e9",
+          "chunk_fingerprint": "56dec2d9abed91a32ffa0695bf0cbe7be69de82920fb12744c389f9c732344c7",
+          "sample_id": "native-001",
+          "page_start": 2,
+          "page_end": 2,
+          "content_type": "body_text",
+          "section_path": ["マルコフ決定過程は次の要素で定義される"],
+          "source_block_ids": [
+            "cdb8c8d333c4-docling-p0002-b0001",
+            "cdb8c8d333c4-docling-p0002-b0002",
+            "cdb8c8d333c4-docling-p0002-b0003",
+            "cdb8c8d333c4-docling-p0002-b0004",
+            "cdb8c8d333c4-docling-p0002-b0005",
+            "cdb8c8d333c4-docling-p0002-b0006",
+            "cdb8c8d333c4-docling-p0002-b0008",
+            "cdb8c8d333c4-docling-p0002-b0009"
+          ],
+          "content": "マルコフ決定過程は次の要素で定義される\n行動集合 𝑨 ：エージェントが選択可能な行動 (𝑎 ∈ 𝐴)の集合\n状態集合 𝑺：エージェントは環境の状態 (𝑠 ∈ 𝑆) に応じて行動を選択する\n状態遷移確率 𝒑 ⋅ 𝒔𝒕, 𝒂𝒕 : 𝑺 → 𝟎, 𝟏 ：(𝑠𝑡, 𝑎𝑡)から次の状態に遷移する確率\n報酬関数 𝒓: 𝑺 ×𝑨 → ℝ ：状態と行動に対する評価 (𝑟𝑡 = 𝑟(𝑠𝑡, 𝑎𝑡) と略記）\n初期状態分布 𝒑 𝒔𝟏 : 𝑺 → 𝟎, 𝟏 ：初期状態 𝑠1 が従う分布\nMDPの定義は文献によってさまざま． 今回はこの定義で説明します．\n重要な性質（マルコフ性）： 状態遷移は今の状態と行動にのみ依存"
+        }
+      ],
+      "notes": "User approved Rank 1 as the only direct definition of the Markov property."
+    },
+    {
+      "query_id": "native-expected-return",
+      "query": "強化学習の目的関数として期待収益はどのように定義されますか？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-cdb8c8d333c4c3e9",
+          "chunk_fingerprint": "fd9474c09ae979cd4570315503fd94a07e7e1f1eefac9a8061baf0ecfa455949",
+          "sample_id": "native-001",
+          "page_start": 6,
+          "page_end": 6,
+          "content_type": "body_text",
+          "section_path": ["最適化への準備：目的関数（期待収益）を定義しよう"],
+          "source_block_ids": [
+            "cdb8c8d333c4-docling-p0006-b0000",
+            "cdb8c8d333c4-docling-p0006-b0001",
+            "cdb8c8d333c4-docling-p0006-b0002",
+            "cdb8c8d333c4-docling-p0006-b0003",
+            "cdb8c8d333c4-docling-p0006-b0004",
+            "cdb8c8d333c4-docling-p0006-b0005",
+            "cdb8c8d333c4-docling-p0006-b0006",
+            "cdb8c8d333c4-docling-p0006-b0007",
+            "cdb8c8d333c4-docling-p0006-b0008"
+          ],
+          "content": "最適化への準備：目的関数（期待収益）を定義しよう\n収益： 𝑅0 = 𝑟(𝑠1, 𝑎1) +𝛾𝑟(𝑠2, 𝑎2) + 𝛾 2𝑟(𝑠3, 𝑎3) +⋯= ∑ 𝑘=0 ∞ 𝛾 𝑘 𝑟𝑡+𝑘+1\n𝛾：割引率 0 ≤ 𝛾 ≤ 1 → 𝛾 が小さいほど即時的な報酬を重視\n𝑅0は確率変数であることに注意：状態遷移, 方策は確率的\n期待収益 𝔼𝜋 𝑅0 ∶ 𝜋 ↦ℝ：方策𝜋で動いた時の収益の期待値．\n𝔼𝜋 𝑅0 は方策の関数であることに注意．これが強化学習における目的関数．\n最適方策 𝜋∗ = argmax𝜋𝔼𝜋 𝑅0 ：期待収益を最大化する方策のこと\nポイント：強化学習では期待収益が目的関数\n次ページから → 最適化させる具体的な方法"
+        }
+      ],
+      "notes": "User approved Rank 1 as the only direct definition of expected return."
+    },
+    {
+      "query_id": "layout-taxonomy-system-design",
+      "query": "According to the paper, how does formalizing the taxonomy enable more precise system design?",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "dc51380f6e21555351a6dc01ce3a355703604e41e312d4bf59447fac7bdea166",
+          "sample_id": "layout-001",
+          "page_start": 2,
+          "page_end": 2,
+          "content_type": "body_text",
+          "section_path": ["1. Introduction"],
+          "source_block_ids": ["bbf8a2258273-docling-p0002-b0012"],
+          "content": "Understanding and formalizing the taxonomy between these two paradigms (AI Agents and Agentic AI) is scientifically significant for several reasons. First, it enables more precise system design by aligning computational frameworks with problem complexity ensuring that AI Agents are deployed for modular, tool-assisted tasks, while Agentic AI is employed for orchestrated multi-agent operations. "
+        },
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "ec9db255ee6e9c0fecf3c21d179f93bec027166ca8c0c04478f555f37cd68166",
+          "sample_id": "layout-001",
+          "page_start": 2,
+          "page_end": 2,
+          "content_type": "body_text",
+          "section_path": ["1. Introduction"],
+          "source_block_ids": ["bbf8a2258273-docling-p0002-b0012"],
+          "content": "Moreover, it allows for appropriate benchmarking and evaluation: performance metrics, safety protocols, and resource requirements differ substantially between agents designed for carrying out individual tasks and system of distributed agents designed for accomplishing complex, coordinated tasks. Additionally, clear taxonomy reduces development inefficiencies by preventing the misapplication of design principles such as assuming inter-agent collaboration in a system designed for single-agent execution. "
+        },
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "ca9b40451e1efd2c913f374fbaea3117499d61fdd9fa93fde3af2fc8ff1492ff",
+          "sample_id": "layout-001",
+          "page_start": 3,
+          "page_end": 3,
+          "content_type": "body_text",
+          "section_path": ["1. Introduction"],
+          "source_block_ids": ["bbf8a2258273-docling-p0003-b0006"],
+          "content": "This review offers the first structured taxonomy that formally separates these paradigms across dimensions of autonomy, coordination, interaction, and reasoning scope. By positioning AI Agents as modular, single-entity systems and Agentic AI as orchestrated ecosystems with emergent behaviors, this work addresses a critical gap in distinguishing design principles, deployment strategies, and evaluation criteria. "
+        },
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "7fe264f39b4327d2be7a04f1252313728e44c07f5c6db9914e2ee6ac9e5519a2",
+          "sample_id": "layout-001",
+          "page_start": 2,
+          "page_end": 2,
+          "content_type": "body_text",
+          "section_path": ["1. Introduction"],
+          "source_block_ids": ["bbf8a2258273-docling-p0002-b0012"],
+          "content": "Without this clarity, developers and practitioners risk both under-engineering complex scenarios that require agentic coordination and over-engineering simple applications that could be solved with a single AI Agent."
+        },
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "701cd853adc39b8142351c1be5eacf52b331f7e58d2c52cb74a527e772aac4c4",
+          "sample_id": "layout-001",
+          "page_start": 3,
+          "page_end": 3,
+          "content_type": "body_text",
+          "section_path": ["1. Introduction"],
+          "source_block_ids": ["bbf8a2258273-docling-p0003-b0006"],
+          "content": "The timing of this distinction is particularly important now, as real-world applications increasingly demand scalable, multi-agent intelligence (e.g., in robotics, healthcare, and scientific discovery), yet developers often lack a clear framework for choosing between isolated agents and collaborative agentic architectures. This review bridges that gap, enabling more precise alignment of system capabilities with task complexity, and informing both research agendas and practical deployments in the post-LLM era."
+        }
+      ],
+      "notes": "User approved three Top-5 chunks and two additional catalog chunks as direct design guidance."
+    },
+    {
+      "query_id": "layout-agent-characteristics",
+      "query": "Which three foundational characteristics of AI Agents are identified in Fig. 4?",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "783c23b4fdc59d93f826e57aeb9be2686bfeb15cd789003cc55ef1f4ba7dfea9",
+          "sample_id": "layout-001",
+          "page_start": 4,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": [
+            "2. Foundational understanding of AI Agents",
+            "2.0.1. Core characteristics of AI Agents"
+          ],
+          "source_block_ids": [
+            "bbf8a2258273-docling-p0004-b0019",
+            "bbf8a2258273-docling-p0004-b0020"
+          ],
+          "content": "Fig. 4 illustrates the three foundational characteristics commonly incorporated by architectural taxonomies and empirical deployments of AI Agents. These characteristics include autonomy, task-specificity, and reactivity with adaptation.\nTogether, these three characteristics provide a foundational framework for understanding and evaluating AI Agents across deployment scenarios. The remainder of this section elaborates on each characteristic, offering theoretical background and illustrative examples."
+        }
+      ],
+      "notes": "User approved Rank 1 as the only chunk listing all three Fig. 4 characteristics."
+    },
+    {
+      "query_id": "scan-reliability-definition",
+      "query": "在本章中，可靠性大致意味着什么？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "38da6f9ad097b080632e068540cb5d49795554d8b19b5816babc1b984bab9415",
+          "sample_id": "scan-001",
+          "page_start": 3,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": ["可靠性(Reliability)"],
+          "source_block_ids": [
+            "faa714221356-docling-p0003-b0029",
+            "faa714221356-docling-p0003-b0030",
+            "faa714221356-docling-p0004-b0000",
+            "faa714221356-docling-p0004-b0001"
+          ],
+          "content": "可靠性(Reliability)\n当出现意外情况如硬件、软件故障、人为失误等，系统应可以继续正常运转：虽\n然性能可能有所降低，但确保功能正确。具体请参阅本章后面的\"可靠性\"一\n节。"
+        },
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "873952c60c2c1e3174a5a07afa1e6396e04c008d1265bc513ac7a190d674316c",
+          "sample_id": "scan-001",
+          "page_start": 4,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": ["可靠性"],
+          "source_block_ids": [
+            "faa714221356-docling-p0004-b0008",
+            "faa714221356-docling-p0004-b0009",
+            "faa714221356-docling-p0004-b0010",
+            "faa714221356-docling-p0004-b0011",
+            "faa714221356-docling-p0004-b0012",
+            "faa714221356-docling-p0004-b0013",
+            "faa714221356-docling-p0004-b0014",
+            "faa714221356-docling-p0004-b0015",
+            "faa714221356-docling-p0004-b0016",
+            "faa714221356-docling-p0004-b0017"
+          ],
+          "content": "可靠性\n每个人脑子里都有一个直观的认识，即什么意味着可靠或者不可靠。对于软件，典型\n的期望包括：\n应用程序执行用户所期望的功能。\n可以容忍用户出现错误或者不正确的软件使用方法。\n性能可以应对典型场景、合理负载压力和数据量。\n系统可防止任何未经授权的访问和滥用。\n如果所有上述目标都要支持才算\"正常工作\"，那么我们可以认为可靠性大致意味\n着：即使发生了某些错误，系统仍可以继续正常工作。\n可能出错的事情称为错误（faults）或故障，系统可应对错误则称为容错（faulttolerant）或者弹性（resilient）。前一个词略显误导：似乎暗示着系统可以容忍各种 可能的故障类型，显然实际中这是不可能的。举一个夸张一些的例子，如果整个地球 (及其上的所有服务器）都被黑洞吞噬，那么要在这个级别容错就意味着必须在宇宙 范围内进行系统冗余。试想，这将是天价的预算。因此，容错总是指特定类型的故 障，这样的系统才更有实际意义。"
+        }
+      ],
+      "notes": "User approved Ranks 1 and 2 as the concise and detailed reliability definitions."
+    },
+    {
+      "query_id": "scan-scalability-maintainability",
+      "query": "可扩展性和可维护性分别意味着什么？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "37dd114eb9eca1b4e963eddaa95592010b92a4f21d3894cb56d3a7cbccf25484",
+          "sample_id": "scan-001",
+          "page_start": 4,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": ["可维护性（Maintainability）"],
+          "source_block_ids": [
+            "faa714221356-docling-p0004-b0004",
+            "faa714221356-docling-p0004-b0005",
+            "faa714221356-docling-p0004-b0006",
+            "faa714221356-docling-p0004-b0007"
+          ],
+          "content": "可维护性（Maintainability）\n随着时间的推移，许多新的人员参与到系统开发和运维，以维护现有功能或适配\n新场景等，系统都应高效运转。具体请参阅本章后面的\"可维护性\"一节。\n很多人对上述目标还欠缺深入的理解。追本溯源，本章后续部分将深入思考可靠性、 可扩展性和可维护性，并将介绍各种技术、架构以及算法来实现这些目标。"
+        },
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "887d9cf172b86c5949c52104c088d7c2b912fa5487ced93745f7c76ebb1de7a8",
+          "sample_id": "scan-001",
+          "page_start": 4,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": ["可扩展性（Scalability）"],
+          "source_block_ids": [
+            "faa714221356-docling-p0004-b0002",
+            "faa714221356-docling-p0004-b0003"
+          ],
+          "content": "可扩展性（Scalability）\n随着规模的增长，例如数据量、流量或复杂性，系统应以合理的方式来匹配这种 增长，具体请参阅本章后面的\"可扩展性\"一节。"
+        }
+      ],
+      "notes": "User approved Ranks 1 and 2 as the maintainability and scalability definitions."
+    }
+  ]
+}

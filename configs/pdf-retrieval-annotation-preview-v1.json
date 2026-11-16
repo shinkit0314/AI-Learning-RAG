@@ -1,0 +1,162 @@
+{
+  "schema_version": "pdf-indexing-preview-v1",
+  "corpus_id": "pdf-sample-corpus-v1",
+  "logical_index_name": "pdf-knowledge-base-v1",
+  "routing_config": "configs/pdf-routing-v1.json",
+  "routing_cache_dir": "output/pdf-routing-cache",
+  "samples": [
+    {
+      "sample_id": "native-001",
+      "path": "data/PDF/native.pdf"
+    },
+    {
+      "sample_id": "layout-001",
+      "path": "data/PDF/layout.pdf"
+    },
+    {
+      "sample_id": "scan-001",
+      "path": "data/PDF/scan.pdf",
+      "ocr_review_decisions": "output/pdf-routing-preview/scan.ocr-decisions.json"
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "native-markov-property",
+      "query": "マルコフ決定過程の重要な性質であるマルコフ性とは何ですか？",
+      "case_type": "answerable",
+      "expected_sample_id": "native-001",
+      "expected_pages": [2],
+      "top_k": 5
+    },
+    {
+      "query_id": "native-expected-return",
+      "query": "強化学習の目的関数として期待収益はどのように定義されますか？",
+      "case_type": "answerable",
+      "expected_sample_id": "native-001",
+      "expected_pages": [6],
+      "top_k": 5
+    },
+    {
+      "query_id": "layout-taxonomy-system-design",
+      "query": "According to the paper, how does formalizing the taxonomy enable more precise system design?",
+      "case_type": "answerable",
+      "expected_sample_id": "layout-001",
+      "expected_pages": [2],
+      "top_k": 5
+    },
+    {
+      "query_id": "layout-agent-characteristics",
+      "query": "Which three foundational characteristics of AI Agents are identified in Fig. 4?",
+      "case_type": "answerable",
+      "expected_sample_id": "layout-001",
+      "expected_pages": [4],
+      "top_k": 5
+    },
+    {
+      "query_id": "scan-reliability-definition",
+      "query": "在本章中，可靠性大致意味着什么？",
+      "case_type": "answerable",
+      "expected_sample_id": "scan-001",
+      "expected_pages": [4],
+      "top_k": 5
+    },
+    {
+      "query_id": "scan-scalability-maintainability",
+      "query": "可扩展性和可维护性分别意味着什么？",
+      "case_type": "answerable",
+      "expected_sample_id": "scan-001",
+      "expected_pages": [4],
+      "top_k": 5
+    },
+    {
+      "query_id": "native-reinforcement-learning-goal",
+      "query": "強化学習では、報酬を利用して何を学習することを目的としていますか？",
+      "case_type": "answerable",
+      "expected_sample_id": "native-001",
+      "expected_pages": [1, 4],
+      "top_k": 5
+    },
+    {
+      "query_id": "native-pomdp-observation-state",
+      "query": "部分観測マルコフ決定過程（POMDP）では、状態と観測について何が分かり、何が分からないと説明されていますか？",
+      "case_type": "answerable",
+      "expected_sample_id": "native-001",
+      "expected_pages": [3],
+      "top_k": 5
+    },
+    {
+      "query_id": "native-policy-definition",
+      "query": "方策は状態に応じて行動をどのように定めるものとして定義されていますか？",
+      "case_type": "answerable",
+      "expected_sample_id": "native-001",
+      "expected_pages": [5],
+      "top_k": 5
+    },
+    {
+      "query_id": "layout-early-agent-limitations",
+      "query": "What common limitations of early AI agents distinguish them from Agentic AI?",
+      "case_type": "answerable",
+      "expected_sample_id": "layout-001",
+      "expected_pages": [2],
+      "top_k": 5
+    },
+    {
+      "query_id": "layout-figure-two-dimensions",
+      "query": "Which key comparison dimensions are represented by the color-coded branches in Fig. 2?",
+      "case_type": "answerable",
+      "expected_sample_id": "layout-001",
+      "expected_pages": [3],
+      "top_k": 5
+    },
+    {
+      "query_id": "layout-search-platforms",
+      "query": "Which traditional academic databases and AI-powered platforms were used in the review's hybrid search methodology?",
+      "case_type": "answerable",
+      "expected_sample_id": "layout-001",
+      "expected_pages": [4],
+      "top_k": 5
+    },
+    {
+      "query_id": "scan-data-system-grouping",
+      "query": "为什么本书把数据库、消息队列和缓存统一归为“数据系统”？",
+      "case_type": "answerable",
+      "expected_sample_id": "scan-001",
+      "expected_pages": [2],
+      "top_k": 5
+    },
+    {
+      "query_id": "scan-fault-vs-failure",
+      "query": "故障（fault）与失效（failure）有什么区别？为什么通常需要容错机制？",
+      "case_type": "answerable",
+      "expected_sample_id": "scan-001",
+      "expected_pages": [4, 5],
+      "top_k": 5
+    },
+    {
+      "query_id": "scan-disk-failure-frequency",
+      "query": "在包含 10000 个磁盘的存储集群中，平均预期多久会发生一次磁盘故障？",
+      "case_type": "answerable",
+      "expected_sample_id": "scan-001",
+      "expected_pages": [5],
+      "top_k": 5
+    },
+    {
+      "query_id": "diagnostic-unanswerable-native-learning-rate",
+      "query": "这份强化学习讲义建议将学习率 α 设置为多少？",
+      "case_type": "unanswerable",
+      "top_k": 5
+    },
+    {
+      "query_id": "diagnostic-unanswerable-layout-imagenet",
+      "query": "What top-1 ImageNet accuracy does the paper report for its proposed Agentic AI model?",
+      "case_type": "unanswerable",
+      "top_k": 5
+    },
+    {
+      "query_id": "diagnostic-ambiguous-system-characteristics",
+      "query": "这个系统最重要的特征是什么？",
+      "case_type": "ambiguous",
+      "top_k": 5
+    }
+  ]
+}
