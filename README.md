@@ -34,18 +34,21 @@ OCR 冲突支持逐页、可审计且 fail-closed 的人工选择。
 验收过的 `TraceablePdfChunk` 接入 Embedding、持久化向量索引和检索流程，并保留回到原 PDF
 页面的完整 provenance；自动检查和人工验收均已通过，并已通过 PR #9 合入 `develop`。“PDF
 证据生成与页级引用”已经完成自然语言查询适配、Top-K Evidence 组织、DeepSeek 受约束生成和
-page/block/bbox Citation，自动检查与真实模型人工验收均已通过，当前在
-`codex/pdf-grounded-generation` 分支等待发布授权。详细阶段顺序见
+page/block/bbox Citation，自动检查与真实模型人工验收均已通过，并已通过 PR #10 合入
+`develop`。阶段 5.1 已建立检索评估基线：15 个可回答问题、2 个不可回答问题和 1 个含糊问题
+已经逐题完成人工 Chunk 相关性审核，并与固定的 87-Chunk 语料快照绑定。真实
+Qwen/PostgreSQL 基线 `v1.0.0` 及自动质量门禁已经通过人工验收，当前等待发布授权。详细阶段顺序见
 [整体开发路线图](docs/DEVELOPMENT_ROADMAP.md)，
 阶段 4.1 的已确认数据模型、事务边界和验收标准见
-[阶段 4.1 设计文档](docs/design/04-01-pdf-chunk-indexing.md)。
+[阶段 4.1 设计文档](docs/design/04-01-pdf-chunk-indexing.md)，阶段 5.1 的评测边界和验收标准见
+[阶段 5.1 设计文档](docs/design/05-01-retrieval-evaluation-baseline.md)。
 本地数据库和显式集成测试准备步骤见
 [PostgreSQL 与 pgvector 本地验证](docs/POSTGRES_SETUP.md)。
 
 切分器接收 Parser 无关的 `ParsedDocument`，支持章节路径、正文组合、跨页处理、可追溯超长 block
 切片，以及表格、公式、图注、代码和未知内容的隔离策略。Embedding、持久化索引和检索已经作为
-独立阶段完成；受证据约束的 PDF 答案生成与页级引用也已完成人工验收。阶段 4.2 合入 `develop`
-后，下一阶段先建立检索评估基线，不会直接凭主观印象加入重排器。
+独立阶段完成；受证据约束的 PDF 答案生成与页级引用也已合入 `develop`。当前先完成检索评估
+基线，不会直接凭主观印象加入切分调优、混合检索或重排器。
 
 ## 环境要求
 

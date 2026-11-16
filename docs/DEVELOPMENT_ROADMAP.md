@@ -3,11 +3,11 @@
 > 本文档是所有新对话的项目导航入口。开始设计或编码前，必须先完整阅读本文档，再结合
 > `docs/PROJECT_REQUIREMENTS.md`、当前阶段学习文档和 Git 状态确认实际进度。
 
-- 路线图版本：`0.4`
-- 最近更新日期：2026-11-15
-- 当前里程碑：PDF 可检索知识库
-- 当前开发阶段：PDF 证据生成与页级引用（人工验收通过，等待发布授权）
-- 下一计划阶段：检索评估基线
+- 路线图版本：`0.6`
+- 最近更新日期：2026-11-16
+- 当前里程碑：检索评估与质量提升
+- 当前开发阶段：检索评估基线（人工验收通过，等待发布授权）
+- 下一计划阶段：切分与 Embedding 实验
 
 ## 1. 这份路线图解决什么问题
 
@@ -44,8 +44,8 @@
 ~~~
 
 当前已经完成 `Chunk 质量门禁 -> Embedding -> 向量与元数据索引 -> Query 检索 -> 证据组织与引用
--> 答案生成` 的实现和人工验收。阶段 4.2 尚待 commit、push、PR 和合入 `develop`；合入后进入
-检索评估基线，不提前创建后续阶段分支。
+-> 答案生成` 的实现、人工验收和合并。阶段 5.1 正在建立固定问题、人工 Chunk 相关性标注、
+Recall@K/MRR、可审计报告和自动回归入口；完成前不进入检索质量调优。
 
 ## 3. 阶段和分支规则
 
@@ -131,7 +131,7 @@
 | ---: | --- | --- | --- | --- |
 | 4.0 | 建立整体开发路线图 | `codex/development-roadmap` | 已合并 | 所有新对话先读取路线图，阶段、分支和验收出口清晰 |
 | 4.1 | 可追溯 PDF Chunk 索引接入 v1 | `codex/pdf-chunk-indexing` | 已合并 | 准入门禁、幂等索引、文档替换、持久化检索和完整 provenance 返回 |
-| 4.2 | PDF 证据生成与页级引用 | `codex/pdf-grounded-generation` | 人工验收通过 | 检索结果能形成证据，答案引用可回到 PDF 页和 bbox |
+| 4.2 | PDF 证据生成与页级引用 | `codex/pdf-grounded-generation` | 已合并 | 检索结果能形成证据，答案引用可回到 PDF 页和 bbox |
 
 阶段 4.1 同时建立 `native.pdf`、`layout.pdf` 和 `scan.pdf` 的检索 JSON/Markdown 人工预览；不在该
 阶段加入混合检索、重排器、答案 UI 或生产部署。
@@ -149,7 +149,7 @@
 
 | 顺序 | 阶段 | 计划分支 | 状态 | 主要完成条件 |
 | ---: | --- | --- | --- | --- |
-| 5.1 | 检索评估基线 | `codex/retrieval-evaluation-baseline` | 计划 | 固定问题、相关 Chunk 标注、Recall@K/MRR 和可重复报告 |
+| 5.1 | 检索评估基线 | `codex/retrieval-evaluation-baseline` | 人工验收通过 | 固定问题、相关 Chunk 标注、Recall@K/MRR 和可重复报告 |
 | 5.2 | 切分与 Embedding 实验 | `codex/retrieval-quality-experiments` | 计划 | 用同一评测集比较参数，不针对单个问题硬调 |
 | 5.3 | 元数据过滤与混合检索 | `codex/hybrid-retrieval` | 计划 | 语义、关键词和过滤策略有可量化对照 |
 | 5.4 | 检索重排 | `codex/retrieval-reranking` | 计划 | 重排收益、延迟和失败边界经过评测 |
@@ -216,20 +216,28 @@ PDF 索引 v1 会先实现其自身所需的幂等和替换语义；7.1 再将�
 - `codex/pdf-grounded-generation` 已完成查询适配、Evidence/Citation 契约、DeepSeek 专用适配器和
   真实 PDF/模型预览；最终自动门禁为 Ruff 格式检查通过、Ruff 静态检查通过、269 项测试通过且
   1 项显式 PostgreSQL 集成测试按设计跳过，显式 PostgreSQL 测试另有 2 项通过。五个真实问题分别
-  验证单证据回答、多证据回答、不可回答和含糊问题，并已于 2026-11-15 通过人工验收。
+  验证单证据回答、多证据回答、不可回答和含糊问题，并已于 2026-11-15 通过人工验收、经 PR #10
+  合入 `develop`。阶段总结见[学习 15](learning/15-pdf-grounded-generation.md)。
 
 ### 当前阶段
 
-- `codex/pdf-grounded-generation` 基于包含 PR #9 的 `develop` 完成实现和人工验收；
-- 阶段 4.2 保持原始向量检索排名，不加入混合检索、重排器、答案 UI 或生产部署；
-- 当前等待用户审核变更并授权 commit、push 和创建以 `develop` 为 base 的 PR。
+- `codex/retrieval-evaluation-baseline` 基于已合入 PR #10 的最新 `develop` 完成阶段 5.1 实现；
+- 已建立固定语料快照、人工 Chunk 相关性决策、Recall@1/3/5、MRR@5、JSON/Markdown 报告和
+  fail-closed 数据校验；
+- 6 个试点问题验证流程后，已扩展并逐题人工审核为 15 个正式可回答问题、2 个 `unanswerable`
+  和 1 个 `ambiguous` 诊断问题；正式评测集与 87-Chunk 固定语料快照绑定；
+- 真实 Qwen/PostgreSQL 正式基线 `v1.0.0` 已于 2026-11-16 通过人工验收：Recall@1 为
+  `0.8022`、Recall@3 为 `0.9511`、Recall@5 为 `0.9733`、MRR@5 为 `1.0000`；
+- 最终自动门禁为 Ruff 格式检查通过、Ruff 静态检查通过、294 项测试通过且 1 项显式 PostgreSQL
+  集成测试按设计跳过；
+- 阶段 5.1 保持现有检索策略，不提前加入切分调优、Embedding 调优、混合检索、查询改写或重排器。
 
 ### 下一步
 
-1. 审核阶段 4.2 的最终 diff 和阶段复盘；
+1. 审核阶段 5.1 的最终 diff 和阶段复盘；
 2. 获得用户明确授权后 commit、push 并创建以 `develop` 为 base 的 PR；
-3. PR 合入最新 `develop` 后，将阶段 4.2 标记为已合并；
-4. 此后才创建 `codex/retrieval-evaluation-baseline`，开始阶段 5.1 的设计确认。
+3. PR 合入最新 `develop` 后，将阶段 5.1 标记为已合并；
+4. 此后才创建阶段 5.2 分支并开始切分与 Embedding 实验。
 
 ## 6. 每阶段的统一完成定义
 

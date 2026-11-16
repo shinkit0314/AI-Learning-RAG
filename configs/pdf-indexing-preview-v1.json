@@ -1,5 +1,6 @@
 {
   "schema_version": "pdf-indexing-preview-v1",
+  "corpus_id": "pdf-sample-corpus-v1",
   "logical_index_name": "pdf-knowledge-base-v1",
   "routing_config": "configs/pdf-routing-v1.json",
   "routing_cache_dir": "output/pdf-routing-cache",

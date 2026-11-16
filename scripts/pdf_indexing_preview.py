@@ -24,12 +24,18 @@ from ai_learning_rag.pdf_indexing import PdfChunkIndexer, PdfIndexingPolicy
 from ai_learning_rag.pdf_ocr_review import load_ocr_review_decisions
 from ai_learning_rag.pdf_retrieval_preview import (
     RetrievalPreviewCase,
+    build_chunk_catalog_entry,
     build_query_preview,
     build_retrieval_markdown,
 )
 from ai_learning_rag.pdf_routing import PdfRoutingConfig
 from ai_learning_rag.pdf_routing_cache import PdfRoutingCache, RoutingCacheMode
 from ai_learning_rag.postgres_vector_index import PostgresVectorIndex
+from ai_learning_rag.retrieval_evaluation import (
+    ChunkIdentity,
+    CorpusInventory,
+    CorpusSample,
+)
 
 
 def main() -> None:
@@ -97,9 +103,12 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     document_samples: dict[str, str] = {}
     sample_summaries = []
+    corpus_samples: list[CorpusSample] = []
+    corpus_chunks: list[ChunkIdentity] = []
+    chunk_catalog: list[dict[str, object]] = []
     try:
         for sample in preview_manifest["samples"]:
-            summary, document_id = _index_sample(
+            summary, corpus_sample, accepted_chunks, accepted_catalog = _index_sample(
                 sample=sample,
                 routing_config=routing_config,
                 routing_cache=routing_cache,
@@ -109,8 +118,11 @@ def main() -> None:
                 policy=policy,
                 output_dir=args.output_dir,
             )
-            document_samples[document_id] = sample["sample_id"]
+            document_samples[corpus_sample.document_id] = sample["sample_id"]
             sample_summaries.append(summary)
+            corpus_samples.append(corpus_sample)
+            corpus_chunks.extend(accepted_chunks)
+            chunk_catalog.extend(accepted_catalog)
 
         current = index.get_manifest(manifest.index_id)
         assert current is not None
@@ -127,9 +139,10 @@ def main() -> None:
             case = RetrievalPreviewCase(
                 query_id=query_item["query_id"],
                 query=query_item["query"],
-                expected_sample_id=query_item["expected_sample_id"],
-                expected_pages=tuple(query_item["expected_pages"]),
+                expected_sample_id=query_item.get("expected_sample_id"),
+                expected_pages=tuple(query_item.get("expected_pages", ())),
                 top_k=query_item["top_k"],
+                case_type=query_item.get("case_type", "answerable"),
             )
             if embedder.count_tokens(case.query) > embedding_config.max_sequence_length:
                 raise ValueError(f"query exceeds token limit: {case.query_id}")
@@ -142,6 +155,15 @@ def main() -> None:
             )
             query_payloads.append(build_query_preview(case, results, document_samples))
 
+        corpus_inventory = CorpusInventory.create(
+            corpus_id=str(preview_manifest.get("corpus_id", "pdf-preview-corpus-v1")),
+            samples=corpus_samples,
+            chunking_profile=chunking_config.chunking_profile,
+            gate_profile=policy.profile,
+            chunks=corpus_chunks,
+        )
+        active_manifest = index.get_manifest(manifest.index_id)
+        assert active_manifest is not None
         payload = {
             "schema_version": "pdf-indexing-retrieval-preview-v1",
             "index_id": manifest.index_id,
@@ -150,6 +172,15 @@ def main() -> None:
             "model_revision": manifest.model_revision,
             "embedding_dimension": manifest.embedding_dimension,
             "document_input_profile": manifest.document_input_profile,
+            "corpus_inventory": corpus_inventory.to_payload(),
+            "index_manifest": {
+                "index_id": active_manifest.index_id,
+                "status": active_manifest.status.value,
+                "identity": active_manifest.identity_payload,
+                "required_pgvector_version": active_manifest.required_pgvector_version,
+                "audit_metadata": dict(active_manifest.audit_metadata),
+            },
+            "chunk_catalog": chunk_catalog,
             "samples": sample_summaries,
             "queries": query_payloads,
         }
@@ -193,7 +224,12 @@ def _index_sample(
     manifest: VectorIndexManifest,
     policy: PdfIndexingPolicy,
     output_dir: Path,
-) -> tuple[dict[str, object], str]:
+) -> tuple[
+    dict[str, object],
+    CorpusSample,
+    tuple[ChunkIdentity, ...],
+    tuple[dict[str, object], ...],
+]:
     pdf_path = Path(str(sample["path"]))
     decisions_path_value = sample.get("ocr_review_decisions")
     decisions_path = None if decisions_path_value is None else Path(str(decisions_path_value))
@@ -249,6 +285,21 @@ def _index_sample(
         report.to_markdown(),
         encoding="utf-8",
     )
+    accepted_chunks = tuple(
+        ChunkIdentity(document.document_id, decision.chunk_fingerprint)
+        for decision in report.decisions
+        if decision.accepted
+    )
+    accepted_fingerprints = {chunk.chunk_fingerprint for chunk in accepted_chunks}
+    accepted_catalog = tuple(
+        build_chunk_catalog_entry(
+            sample_id=str(sample["sample_id"]),
+            path=str(pdf_path),
+            chunk=chunk,
+        )
+        for chunk in chunks.chunks
+        if chunk.source_fingerprint in accepted_fingerprints
+    )
     return (
         {
             "sample_id": sample["sample_id"],
@@ -268,7 +319,14 @@ def _index_sample(
             "gate_accepted": report.accepted_count,
             "gate_rejected": report.rejected_count,
         },
-        document.document_id,
+        CorpusSample(
+            sample_id=str(sample["sample_id"]),
+            path=str(pdf_path),
+            document_id=document.document_id,
+            file_sha256=document.file_sha256,
+        ),
+        accepted_chunks,
+        accepted_catalog,
     )
 
 
