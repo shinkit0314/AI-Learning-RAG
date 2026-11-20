@@ -334,6 +334,36 @@ class PostgresVectorIndex:
                 document_revision=next_revision,
             )
 
+    def read_active_records(self, index_id: str) -> tuple[tuple[VectorRecord, ...], int]:
+        """Read the selected document generations and their vector storage bytes."""
+
+        with self._engine.connect() as connection:
+            rows = (
+                connection.execute(
+                    text(
+                        """
+                        SELECT vr.*, vr.embedding::text AS embedding_text,
+                               pg_column_size(vr.embedding) AS vector_bytes
+                        FROM rag.vector_records AS vr
+                        JOIN rag.indexed_documents AS doc
+                          ON doc.index_id = vr.index_id
+                         AND doc.document_id = vr.document_id
+                         AND doc.active_generation_id = vr.generation_id
+                        JOIN rag.vector_indexes AS idx ON idx.index_id = vr.index_id
+                        WHERE vr.index_id = :index_id
+                          AND idx.status = 'active'
+                        ORDER BY vr.document_id, vr.chunk_index
+                        """
+                    ),
+                    {"index_id": index_id},
+                )
+                .mappings()
+                .all()
+            )
+        return tuple(_record_from_row(row) for row in rows), sum(
+            row["vector_bytes"] for row in rows
+        )
+
     def search(self, query: VectorSearchQuery) -> list[SearchResult]:
         """Use exact cosine distance over active generations in one active index."""
 
@@ -396,29 +426,29 @@ class PostgresVectorIndex:
             )
 
         return [
-            SearchResult(
-                record=VectorRecord(
-                    record_id=row["record_id"],
-                    index_id=row["index_id"],
-                    generation_id=row["generation_id"],
-                    document_id=row["document_id"],
-                    chunk_fingerprint=row["chunk_fingerprint"],
-                    chunk_index=row["chunk_index"],
-                    content=row["content"],
-                    content_type=row["content_type"],
-                    section_path=tuple(row["section_path"]),
-                    page_start=row["page_start"],
-                    page_end=row["page_end"],
-                    embedding_input_hash=row["embedding_input_hash"],
-                    embedding_input_token_count=row["embedding_input_token_count"],
-                    vector=_parse_vector_literal(row["embedding_text"]),
-                    provenance=dict(row["provenance"]),
-                    provenance_schema_version=row["provenance_schema_version"],
-                ),
-                score=float(row["score"]),
-            )
-            for row in rows
+            SearchResult(record=_record_from_row(row), score=float(row["score"])) for row in rows
         ]
+
+
+def _record_from_row(row: Any) -> VectorRecord:
+    return VectorRecord(
+        record_id=row["record_id"],
+        index_id=row["index_id"],
+        generation_id=row["generation_id"],
+        document_id=row["document_id"],
+        chunk_fingerprint=row["chunk_fingerprint"],
+        chunk_index=row["chunk_index"],
+        content=row["content"],
+        content_type=row["content_type"],
+        section_path=tuple(row["section_path"]),
+        page_start=row["page_start"],
+        page_end=row["page_end"],
+        embedding_input_hash=row["embedding_input_hash"],
+        embedding_input_token_count=row["embedding_input_token_count"],
+        vector=_parse_vector_literal(row["embedding_text"]),
+        provenance=dict(row["provenance"]),
+        provenance_schema_version=row["provenance_schema_version"],
+    )
 
 
 def _manifest_parameters(manifest: VectorIndexManifest) -> dict[str, object]:

@@ -99,10 +99,19 @@ class Qwen3Embedder:
         """Return the configured output dimension."""
         return self.config.dimension
 
-    def embed_query(self, query: str) -> list[float]:
-        """Encode one search query using Qwen's retrieval instruction."""
+    def embed_query(self, query: str, *, prompt: str | None = None) -> list[float]:
+        """Encode a query with the model default or an explicit prefix, including empty."""
         self._validate_text(query, label="query")
-        return self._encode([query], prompt_name="query")[0]
+        if prompt is None:
+            return self._encode([query], prompt_name="query")[0]
+        return self._encode([query], prompt=prompt)[0]
+
+    def default_query_prompt(self) -> str:
+        """Return the pinned model's actual prompt for auditing experiment input."""
+        prompts = getattr(self._model, "prompts", None)
+        if not isinstance(prompts, Mapping) or not isinstance(prompts.get("query"), str):
+            raise RuntimeError("embedding model does not provide a default query prompt")
+        return prompts["query"]
 
     def embed_documents(self, documents: Sequence[str]) -> list[list[float]]:
         """Encode document chunks without adding the query instruction."""
@@ -136,7 +145,9 @@ class Qwen3Embedder:
             raise RuntimeError("embedding tokenizer returned no tokens")
         return len(input_ids)
 
-    def _encode(self, texts: list[str], *, prompt_name: str | None = None) -> list[list[float]]:
+    def _encode(
+        self, texts: list[str], *, prompt_name: str | None = None, prompt: str | None = None
+    ) -> list[list[float]]:
         options: dict[str, Any] = {
             "batch_size": self.config.batch_size,
             "show_progress_bar": False,
@@ -145,6 +156,8 @@ class Qwen3Embedder:
         }
         if prompt_name is not None:
             options["prompt_name"] = prompt_name
+        if prompt is not None:
+            options["prompt"] = prompt
 
         encoded = self._model.encode(texts, **options)
         vectors = [list(map(float, vector)) for vector in encoded]

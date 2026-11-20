@@ -18,7 +18,7 @@ from ai_learning_rag.document_index import (
     VectorSearchQuery,
 )
 from ai_learning_rag.embedding import EmbeddingConfig, Qwen3Embedder
-from ai_learning_rag.pdf_auto_routing import parse_pdf_auto
+from ai_learning_rag.pdf_auto_routing import PdfAutoRoutingResult, parse_pdf_auto
 from ai_learning_rag.pdf_chunking import PdfChunkingConfig, chunk_pdf_document
 from ai_learning_rag.pdf_indexing import PdfChunkIndexer, PdfIndexingPolicy
 from ai_learning_rag.pdf_ocr_review import load_ocr_review_decisions
@@ -30,6 +30,7 @@ from ai_learning_rag.pdf_retrieval_preview import (
 )
 from ai_learning_rag.pdf_routing import PdfRoutingConfig
 from ai_learning_rag.pdf_routing_cache import PdfRoutingCache, RoutingCacheMode
+from ai_learning_rag.pdf_schema import ExtractionProvenance, ParsedDocument
 from ai_learning_rag.postgres_vector_index import PostgresVectorIndex
 from ai_learning_rag.retrieval_evaluation import (
     ChunkIdentity,
@@ -231,32 +232,15 @@ def _index_sample(
     tuple[dict[str, object], ...],
 ]:
     pdf_path = Path(str(sample["path"]))
-    decisions_path_value = sample.get("ocr_review_decisions")
-    decisions_path = None if decisions_path_value is None else Path(str(decisions_path_value))
-    decisions = None if decisions_path is None else load_ocr_review_decisions(decisions_path)
-    routing_result = parse_pdf_auto(
-        pdf_path,
-        routing_config,
-        cache=routing_cache,
-        ocr_review_decisions=decisions,
-    )
+    routing_result, ocr_fingerprint = load_preview_document(sample, routing_config, routing_cache)
     document = routing_result.document
     chunks = chunk_pdf_document(document, chunking_config)
-    registry_fingerprint = _provenance_registry_fingerprint(document.extraction_provenances)
-    generation = DocumentGeneration.create(
+    generation = preview_generation(
+        document,
         index_id=manifest.index_id,
-        document_id=document.document_id,
-        file_sha256=document.file_sha256,
-        routing_profile=document.routing_profile,
-        parser_profile=f"{document.parser_name}:{document.parser_version}",
-        ocr_decision_fingerprint=(
-            sha256(b"no-manual-ocr-review-v1").hexdigest()
-            if decisions_path is None
-            else sha256(decisions_path.read_bytes()).hexdigest()
-        ),
-        chunking_profile=chunking_config.chunking_profile,
-        gate_profile=policy.profile,
-        provenance_registry_fingerprint=registry_fingerprint,
+        ocr_fingerprint=ocr_fingerprint,
+        config=chunking_config,
+        policy=policy,
     )
     registry = {provenance.id: provenance for provenance in document.extraction_provenances}
     result = indexer.index_document(
@@ -330,9 +314,53 @@ def _index_sample(
     )
 
 
-def _provenance_registry_fingerprint(provenances: tuple[object, ...]) -> str:
+def load_preview_document(
+    sample: dict[str, object], routing_config: PdfRoutingConfig, routing_cache: PdfRoutingCache
+) -> tuple[PdfAutoRoutingResult, str]:
+    """Resolve the exact PDF and reviewed OCR inputs for a preview sample."""
+    decisions_path = sample.get("ocr_review_decisions")
+    if decisions_path is None:
+        decisions, ocr_fingerprint = None, sha256(b"no-manual-ocr-review-v1").hexdigest()
+    else:
+        path = Path(str(decisions_path))
+        decisions = load_ocr_review_decisions(path)
+        ocr_fingerprint = sha256(path.read_bytes()).hexdigest()
+    result = parse_pdf_auto(
+        Path(str(sample["path"])),
+        routing_config,
+        cache=routing_cache,
+        ocr_review_decisions=decisions,
+    )
+    return result, ocr_fingerprint
+
+
+def preview_generation(
+    document: ParsedDocument,
+    *,
+    index_id: str,
+    ocr_fingerprint: str,
+    config: PdfChunkingConfig,
+    policy: PdfIndexingPolicy,
+) -> DocumentGeneration:
+    """Give preview and indexing runs the same document-processing identity."""
+    return DocumentGeneration.create(
+        index_id=index_id,
+        document_id=document.document_id,
+        file_sha256=document.file_sha256,
+        routing_profile=document.routing_profile,
+        parser_profile=f"{document.parser_name}:{document.parser_version}",
+        ocr_decision_fingerprint=ocr_fingerprint,
+        chunking_profile=config.chunking_profile,
+        gate_profile=policy.profile,
+        provenance_registry_fingerprint=_provenance_registry_fingerprint(
+            document.extraction_provenances
+        ),
+    )
+
+
+def _provenance_registry_fingerprint(provenances: tuple[ExtractionProvenance, ...]) -> str:
     payload = json.dumps(
-        [asdict(provenance) for provenance in provenances],  # type: ignore[arg-type]
+        [asdict(provenance) for provenance in provenances],
         ensure_ascii=False,
         separators=(",", ":"),
         sort_keys=True,
