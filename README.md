@@ -22,6 +22,7 @@
 - [学习 13：PDF Parser 自动路由 v1](docs/learning/13-pdf-page-routing.md)
 - [学习 14：可追溯 PDF 索引与检索](docs/learning/14-pdf-chunk-indexing-and-retrieval.md)
 - [学习 15：PDF 证据生成与页级引用](docs/learning/15-pdf-grounded-generation.md)
+- [学习 16：RAG 评估：从检索到答案](docs/learning/16-rag-evaluation.md)
 
 ## 当前进度
 
@@ -37,7 +38,9 @@ OCR 冲突支持逐页、可审计且 fail-closed 的人工选择。
 page/block/bbox Citation，自动检查与真实模型人工验收均已通过，并已通过 PR #10 合入
 `develop`。阶段 5.1 已建立检索评估基线：15 个可回答问题、2 个不可回答问题和 1 个含糊问题
 已经逐题完成人工 Chunk 相关性审核，并与固定的 87-Chunk 语料快照绑定。真实
-Qwen/PostgreSQL 基线 `v1.0.0` 及自动质量门禁已经通过人工验收，当前等待发布授权。详细阶段顺序见
+Qwen/PostgreSQL 基线 `v1.0.0` 及自动质量门禁已经通过人工验收，并经 PR #11 合入 `develop`。
+当前阶段 5.2 已完成 5.1 基线复跑、Embedding 指令对照和 600 与 1,000 字符切分对照。
+5.2 已通过人工验收，确认保留 v1.0.0 基线。实验报告和取舍见[阶段 5.2 设计文档](docs/design/05-02-retrieval-quality-experiments.md)。详细阶段顺序见
 [整体开发路线图](docs/DEVELOPMENT_ROADMAP.md)，
 阶段 4.1 的已确认数据模型、事务边界和验收标准见
 [阶段 4.1 设计文档](docs/design/04-01-pdf-chunk-indexing.md)，阶段 5.1 的评测边界和验收标准见

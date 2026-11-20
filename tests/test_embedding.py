@@ -91,6 +91,19 @@ def test_documents_are_encoded_as_a_batch_without_query_prompt() -> None:
     assert model.calls[0][1]["normalize_embeddings"] is True
 
 
+@pytest.mark.parametrize("prefix", ["Instruct: Find PDF evidence.\nQuery:", ""])
+def test_explicit_query_prefix_replaces_the_model_default(prefix: str) -> None:
+    model = FakeEncoderModel(dimension=32)
+    embedder = Qwen3Embedder(EmbeddingConfig(dimension=32), model=model)
+
+    embedder.embed_query("What is retrieval?", prompt=prefix)
+
+    inputs, kwargs = model.calls[0]
+    assert inputs == ["What is retrieval?"]
+    assert kwargs["prompt"] == prefix
+    assert "prompt_name" not in kwargs
+
+
 def test_empty_document_batch_needs_no_model_call() -> None:
     """An empty ingestion batch should finish without unnecessary model work."""
     config = EmbeddingConfig(dimension=32)

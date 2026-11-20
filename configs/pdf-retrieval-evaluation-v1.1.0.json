@@ -1,0 +1,588 @@
+{
+  "schema_version": "pdf-retrieval-evaluation-v1",
+  "dataset_id": "pdf-retrieval-evaluation",
+  "dataset_version": "1.1.0",
+  "corpus": {
+    "corpus_id": "pdf-sample-corpus-v1",
+    "samples": [
+      {
+        "sample_id": "layout-001",
+        "path": "data\\PDF\\layout.pdf",
+        "document_id": "pdf-bbf8a22582738d49",
+        "file_sha256": "bbf8a22582738d49f3428286117c0613b6cd378c5da2d08152036bf50cf52e5e"
+      },
+      {
+        "sample_id": "native-001",
+        "path": "data\\PDF\\native.pdf",
+        "document_id": "pdf-cdb8c8d333c4c3e9",
+        "file_sha256": "cdb8c8d333c4c3e9ac0f2547b67ebebe646a33ef6be83b587cb6602cb6ab40d9"
+      },
+      {
+        "sample_id": "scan-001",
+        "path": "data\\PDF\\scan.pdf",
+        "document_id": "pdf-faa7142213568a56",
+        "file_sha256": "faa7142213568a56a613345f884e35759ee68455558e99136bc2c2f1fb2a23b7"
+      }
+    ],
+    "chunking_profile": "pdf-structure-v1;length=characters;target=400;hard_max=1000;overlap_percent=20",
+    "gate_profile": "pdf-index-gate-v1",
+    "chunk_count": 69,
+    "chunk_set_fingerprint": "02045178775e2da72d021a6f71b45e284bb42970c8d1e5955f7f276dbaaf014f"
+  },
+  "metrics": {
+    "recall_ks": [
+      1,
+      3,
+      5
+    ],
+    "mrr_k": 5
+  },
+  "cases": [
+    {
+      "query_id": "native-markov-property",
+      "query": "マルコフ決定過程の重要な性質であるマルコフ性とは何ですか？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-cdb8c8d333c4c3e9",
+          "chunk_fingerprint": "56dec2d9abed91a32ffa0695bf0cbe7be69de82920fb12744c389f9c732344c7",
+          "sample_id": "native-001",
+          "page_start": 2,
+          "page_end": 2,
+          "content_type": "body_text",
+          "section_path": [
+            "マルコフ決定過程は次の要素で定義される"
+          ],
+          "source_block_ids": [
+            "cdb8c8d333c4-docling-p0002-b0001",
+            "cdb8c8d333c4-docling-p0002-b0002",
+            "cdb8c8d333c4-docling-p0002-b0003",
+            "cdb8c8d333c4-docling-p0002-b0004",
+            "cdb8c8d333c4-docling-p0002-b0005",
+            "cdb8c8d333c4-docling-p0002-b0006",
+            "cdb8c8d333c4-docling-p0002-b0008",
+            "cdb8c8d333c4-docling-p0002-b0009"
+          ],
+          "content": "マルコフ決定過程は次の要素で定義される\n行動集合 𝑨 ：エージェントが選択可能な行動 (𝑎 ∈ 𝐴)の集合\n状態集合 𝑺：エージェントは環境の状態 (𝑠 ∈ 𝑆) に応じて行動を選択する\n状態遷移確率 𝒑 ⋅ 𝒔𝒕, 𝒂𝒕 : 𝑺 → 𝟎, 𝟏 ：(𝑠𝑡, 𝑎𝑡)から次の状態に遷移する確率\n報酬関数 𝒓: 𝑺 ×𝑨 → ℝ ：状態と行動に対する評価 (𝑟𝑡 = 𝑟(𝑠𝑡, 𝑎𝑡) と略記）\n初期状態分布 𝒑 𝒔𝟏 : 𝑺 → 𝟎, 𝟏 ：初期状態 𝑠1 が従う分布\nMDPの定義は文献によってさまざま． 今回はこの定義で説明します．\n重要な性質（マルコフ性）： 状態遷移は今の状態と行動にのみ依存"
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "native-expected-return",
+      "query": "強化学習の目的関数として期待収益はどのように定義されますか？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-cdb8c8d333c4c3e9",
+          "chunk_fingerprint": "fd9474c09ae979cd4570315503fd94a07e7e1f1eefac9a8061baf0ecfa455949",
+          "sample_id": "native-001",
+          "page_start": 6,
+          "page_end": 6,
+          "content_type": "body_text",
+          "section_path": [
+            "最適化への準備：目的関数（期待収益）を定義しよう"
+          ],
+          "source_block_ids": [
+            "cdb8c8d333c4-docling-p0006-b0000",
+            "cdb8c8d333c4-docling-p0006-b0001",
+            "cdb8c8d333c4-docling-p0006-b0002",
+            "cdb8c8d333c4-docling-p0006-b0003",
+            "cdb8c8d333c4-docling-p0006-b0004",
+            "cdb8c8d333c4-docling-p0006-b0005",
+            "cdb8c8d333c4-docling-p0006-b0006",
+            "cdb8c8d333c4-docling-p0006-b0007",
+            "cdb8c8d333c4-docling-p0006-b0008"
+          ],
+          "content": "最適化への準備：目的関数（期待収益）を定義しよう\n収益： 𝑅0 = 𝑟(𝑠1, 𝑎1) +𝛾𝑟(𝑠2, 𝑎2) + 𝛾 2𝑟(𝑠3, 𝑎3) +⋯= ∑ 𝑘=0 ∞ 𝛾 𝑘 𝑟𝑡+𝑘+1\n𝛾：割引率 0 ≤ 𝛾 ≤ 1 → 𝛾 が小さいほど即時的な報酬を重視\n𝑅0は確率変数であることに注意：状態遷移, 方策は確率的\n期待収益 𝔼𝜋 𝑅0 ∶ 𝜋 ↦ℝ：方策𝜋で動いた時の収益の期待値．\n𝔼𝜋 𝑅0 は方策の関数であることに注意．これが強化学習における目的関数．\n最適方策 𝜋∗ = argmax𝜋𝔼𝜋 𝑅0 ：期待収益を最大化する方策のこと\nポイント：強化学習では期待収益が目的関数\n次ページから → 最適化させる具体的な方法"
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "layout-taxonomy-system-design",
+      "query": "According to the paper, how does formalizing the taxonomy enable more precise system design?",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "533d9532fdb521565ade167582e6c61bff7a5eb04d163ff983aadf4cf2659fd5",
+          "sample_id": "layout-001",
+          "page_start": 2,
+          "page_end": 2,
+          "content_type": "body_text",
+          "section_path": [
+            "1. Introduction"
+          ],
+          "source_block_ids": [
+            "bbf8a2258273-docling-p0002-b0012"
+          ],
+          "content": "Understanding and formalizing the taxonomy between these two paradigms (AI Agents and Agentic AI) is scientifically significant for several reasons. First, it enables more precise system design by aligning computational frameworks with problem complexity ensuring that AI Agents are deployed for modular, tool-assisted tasks, while Agentic AI is employed for orchestrated multi-agent operations. Moreover, it allows for appropriate benchmarking and evaluation: performance metrics, safety protocols, and resource requirements differ substantially between agents designed for carrying out individual tasks and system of distributed agents designed for accomplishing complex, coordinated tasks. "
+        },
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "67c14b3316307be5592af7ff76dba9a4f5daa7f7d63599964cdf4fe36fa7f29e",
+          "sample_id": "layout-001",
+          "page_start": 2,
+          "page_end": 2,
+          "content_type": "body_text",
+          "section_path": [
+            "1. Introduction"
+          ],
+          "source_block_ids": [
+            "bbf8a2258273-docling-p0002-b0012"
+          ],
+          "content": "Additionally, clear taxonomy reduces development inefficiencies by preventing the misapplication of design principles such as assuming inter-agent collaboration in a system designed for single-agent execution. Without this clarity, developers and practitioners risk both under-engineering complex scenarios that require agentic coordination and over-engineering simple applications that could be solved with a single AI Agent."
+        },
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "330bbb287f47a590d4fc5b788ebd412ec9adbad20709334737fdc92f87cdcf08",
+          "sample_id": "layout-001",
+          "page_start": 3,
+          "page_end": 3,
+          "content_type": "body_text",
+          "section_path": [
+            "1. Introduction"
+          ],
+          "source_block_ids": [
+            "bbf8a2258273-docling-p0003-b0006"
+          ],
+          "content": "This review offers the first structured taxonomy that formally separates these paradigms across dimensions of autonomy, coordination, interaction, and reasoning scope. By positioning AI Agents as modular, single-entity systems and Agentic AI as orchestrated ecosystems with emergent behaviors, this work addresses a critical gap in distinguishing design principles, deployment strategies, and evaluation criteria. The timing of this distinction is particularly important now, as real-world applications increasingly demand scalable, multi-agent intelligence (e.g., in robotics, healthcare, and scientific discovery), yet developers often lack a clear framework for choosing between isolated agents and collaborative agentic architectures. This review bridges that gap, enabling more precise alignment of system capabilities with task complexity, and informing both research agendas and practical deployments in the post-LLM era."
+        }
+      ],
+      "notes": "第 2 页两片分别概括按任务复杂度选择架构、避免设计不足或过度设计。第 3 页合并片段补充架构选型依据。三个候选覆盖原标注的五片证据。"
+    },
+    {
+      "query_id": "layout-agent-characteristics",
+      "query": "Which three foundational characteristics of AI Agents are identified in Fig. 4?",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "783c23b4fdc59d93f826e57aeb9be2686bfeb15cd789003cc55ef1f4ba7dfea9",
+          "sample_id": "layout-001",
+          "page_start": 4,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": [
+            "2. Foundational understanding of AI Agents",
+            "2.0.1. Core characteristics of AI Agents"
+          ],
+          "source_block_ids": [
+            "bbf8a2258273-docling-p0004-b0019",
+            "bbf8a2258273-docling-p0004-b0020"
+          ],
+          "content": "Fig. 4 illustrates the three foundational characteristics commonly incorporated by architectural taxonomies and empirical deployments of AI Agents. These characteristics include autonomy, task-specificity, and reactivity with adaptation.\nTogether, these three characteristics provide a foundational framework for understanding and evaluating AI Agents across deployment scenarios. The remainder of this section elaborates on each characteristic, offering theoretical background and illustrative examples."
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "scan-reliability-definition",
+      "query": "在本章中，可靠性大致意味着什么？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "38da6f9ad097b080632e068540cb5d49795554d8b19b5816babc1b984bab9415",
+          "sample_id": "scan-001",
+          "page_start": 3,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": [
+            "可靠性(Reliability)"
+          ],
+          "source_block_ids": [
+            "faa714221356-docling-p0003-b0029",
+            "faa714221356-docling-p0003-b0030",
+            "faa714221356-docling-p0004-b0000",
+            "faa714221356-docling-p0004-b0001"
+          ],
+          "content": "可靠性(Reliability)\n当出现意外情况如硬件、软件故障、人为失误等，系统应可以继续正常运转：虽\n然性能可能有所降低，但确保功能正确。具体请参阅本章后面的\"可靠性\"一\n节。"
+        },
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "873952c60c2c1e3174a5a07afa1e6396e04c008d1265bc513ac7a190d674316c",
+          "sample_id": "scan-001",
+          "page_start": 4,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": [
+            "可靠性"
+          ],
+          "source_block_ids": [
+            "faa714221356-docling-p0004-b0008",
+            "faa714221356-docling-p0004-b0009",
+            "faa714221356-docling-p0004-b0010",
+            "faa714221356-docling-p0004-b0011",
+            "faa714221356-docling-p0004-b0012",
+            "faa714221356-docling-p0004-b0013",
+            "faa714221356-docling-p0004-b0014",
+            "faa714221356-docling-p0004-b0015",
+            "faa714221356-docling-p0004-b0016",
+            "faa714221356-docling-p0004-b0017"
+          ],
+          "content": "可靠性\n每个人脑子里都有一个直观的认识，即什么意味着可靠或者不可靠。对于软件，典型\n的期望包括：\n应用程序执行用户所期望的功能。\n可以容忍用户出现错误或者不正确的软件使用方法。\n性能可以应对典型场景、合理负载压力和数据量。\n系统可防止任何未经授权的访问和滥用。\n如果所有上述目标都要支持才算\"正常工作\"，那么我们可以认为可靠性大致意味\n着：即使发生了某些错误，系统仍可以继续正常工作。\n可能出错的事情称为错误（faults）或故障，系统可应对错误则称为容错（faulttolerant）或者弹性（resilient）。前一个词略显误导：似乎暗示着系统可以容忍各种 可能的故障类型，显然实际中这是不可能的。举一个夸张一些的例子，如果整个地球 (及其上的所有服务器）都被黑洞吞噬，那么要在这个级别容错就意味着必须在宇宙 范围内进行系统冗余。试想，这将是天价的预算。因此，容错总是指特定类型的故 障，这样的系统才更有实际意义。"
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "scan-scalability-maintainability",
+      "query": "可扩展性和可维护性分别意味着什么？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "37dd114eb9eca1b4e963eddaa95592010b92a4f21d3894cb56d3a7cbccf25484",
+          "sample_id": "scan-001",
+          "page_start": 4,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": [
+            "可维护性（Maintainability）"
+          ],
+          "source_block_ids": [
+            "faa714221356-docling-p0004-b0004",
+            "faa714221356-docling-p0004-b0005",
+            "faa714221356-docling-p0004-b0006",
+            "faa714221356-docling-p0004-b0007"
+          ],
+          "content": "可维护性（Maintainability）\n随着时间的推移，许多新的人员参与到系统开发和运维，以维护现有功能或适配\n新场景等，系统都应高效运转。具体请参阅本章后面的\"可维护性\"一节。\n很多人对上述目标还欠缺深入的理解。追本溯源，本章后续部分将深入思考可靠性、 可扩展性和可维护性，并将介绍各种技术、架构以及算法来实现这些目标。"
+        },
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "887d9cf172b86c5949c52104c088d7c2b912fa5487ced93745f7c76ebb1de7a8",
+          "sample_id": "scan-001",
+          "page_start": 4,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": [
+            "可扩展性（Scalability）"
+          ],
+          "source_block_ids": [
+            "faa714221356-docling-p0004-b0002",
+            "faa714221356-docling-p0004-b0003"
+          ],
+          "content": "可扩展性（Scalability）\n随着规模的增长，例如数据量、流量或复杂性，系统应以合理的方式来匹配这种 增长，具体请参阅本章后面的\"可扩展性\"一节。"
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "native-reinforcement-learning-goal",
+      "query": "強化学習では、報酬を利用して何を学習することを目的としていますか？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-cdb8c8d333c4c3e9",
+          "chunk_fingerprint": "3bcd4fa92abb008b17223c4554e09f40a21e122e1da5bf3cad8fe37b4f3b811f",
+          "sample_id": "native-001",
+          "page_start": 1,
+          "page_end": 1,
+          "content_type": "body_text",
+          "section_path": [
+            "· 強化学習の目的："
+          ],
+          "source_block_ids": [
+            "cdb8c8d333c4-docling-p0001-b0005",
+            "cdb8c8d333c4-docling-p0001-b0006",
+            "cdb8c8d333c4-docling-p0001-b0007"
+          ],
+          "content": "· 強化学習の目的：\n行動の結果得られる報酬を利用し,\nその環境で最も良い行動ルール（最適方策）を学習したい"
+        },
+        {
+          "document_id": "pdf-cdb8c8d333c4c3e9",
+          "chunk_fingerprint": "331412dc09f7a1f55f05bec623e58bbf9904cd1cb194b9fa48ae24720823ce57",
+          "sample_id": "native-001",
+          "page_start": 4,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": [
+            "· 強化学習の目的："
+          ],
+          "source_block_ids": [
+            "cdb8c8d333c4-docling-p0004-b0004",
+            "cdb8c8d333c4-docling-p0004-b0015",
+            "cdb8c8d333c4-docling-p0004-b0016"
+          ],
+          "content": "· 強化学習の目的：\n行動の結果得られる報酬を利用し, その環境で最も良い行動ルール（最適方策）を学習したい\n→ 行動ルールを確率分布として定式化＆最適化問題として定式化"
+        },
+        {
+          "document_id": "pdf-cdb8c8d333c4c3e9",
+          "chunk_fingerprint": "fd9474c09ae979cd4570315503fd94a07e7e1f1eefac9a8061baf0ecfa455949",
+          "sample_id": "native-001",
+          "page_start": 6,
+          "page_end": 6,
+          "content_type": "body_text",
+          "section_path": [
+            "最適化への準備：目的関数（期待収益）を定義しよう"
+          ],
+          "source_block_ids": [
+            "cdb8c8d333c4-docling-p0006-b0000",
+            "cdb8c8d333c4-docling-p0006-b0001",
+            "cdb8c8d333c4-docling-p0006-b0002",
+            "cdb8c8d333c4-docling-p0006-b0003",
+            "cdb8c8d333c4-docling-p0006-b0004",
+            "cdb8c8d333c4-docling-p0006-b0005",
+            "cdb8c8d333c4-docling-p0006-b0006",
+            "cdb8c8d333c4-docling-p0006-b0007",
+            "cdb8c8d333c4-docling-p0006-b0008"
+          ],
+          "content": "最適化への準備：目的関数（期待収益）を定義しよう\n収益： 𝑅0 = 𝑟(𝑠1, 𝑎1) +𝛾𝑟(𝑠2, 𝑎2) + 𝛾 2𝑟(𝑠3, 𝑎3) +⋯= ∑ 𝑘=0 ∞ 𝛾 𝑘 𝑟𝑡+𝑘+1\n𝛾：割引率 0 ≤ 𝛾 ≤ 1 → 𝛾 が小さいほど即時的な報酬を重視\n𝑅0は確率変数であることに注意：状態遷移, 方策は確率的\n期待収益 𝔼𝜋 𝑅0 ∶ 𝜋 ↦ℝ：方策𝜋で動いた時の収益の期待値．\n𝔼𝜋 𝑅0 は方策の関数であることに注意．これが強化学習における目的関数．\n最適方策 𝜋∗ = argmax𝜋𝔼𝜋 𝑅0 ：期待収益を最大化する方策のこと\nポイント：強化学習では期待収益が目的関数\n次ページから → 最適化させる具体的な方法"
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "native-pomdp-observation-state",
+      "query": "部分観測マルコフ決定過程（POMDP）では、状態と観測について何が分かり、何が分からないと説明されていますか？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-cdb8c8d333c4c3e9",
+          "chunk_fingerprint": "b0be140ef0cecdd0796608500e2b0541cceedaddd2d31037ec88f687d02c41e0",
+          "sample_id": "native-001",
+          "page_start": 3,
+          "page_end": 3,
+          "content_type": "body_text",
+          "section_path": [
+            "参考：部分観測マルコフ決定過程（POMDP）"
+          ],
+          "source_block_ids": [
+            "cdb8c8d333c4-docling-p0003-b0000",
+            "cdb8c8d333c4-docling-p0003-b0001",
+            "cdb8c8d333c4-docling-p0003-b0002",
+            "cdb8c8d333c4-docling-p0003-b0003",
+            "cdb8c8d333c4-docling-p0003-b0004",
+            "cdb8c8d333c4-docling-p0003-b0005"
+          ],
+          "content": "参考：部分観測マルコフ決定過程（POMDP）\n状態 𝑠𝑡 は分からないが, 観測 𝑜𝑡 は分かる問題設定\nややこしくなるので今回は観測≒状態として話を進めます\n例（ブロック崩し）：\n観測：ゲームの画面\n状態：ボールの位置, 速度など"
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "native-policy-definition",
+      "query": "方策は状態に応じて行動をどのように定めるものとして定義されていますか？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-cdb8c8d333c4c3e9",
+          "chunk_fingerprint": "c30cd23362da71150363a3fc3b5400728447c49416d4ecf670a64cf3b6f4b30f",
+          "sample_id": "native-001",
+          "page_start": 5,
+          "page_end": 5,
+          "content_type": "body_text",
+          "section_path": [
+            "最適化への準備：変数（行動ルール）を定義しよう"
+          ],
+          "source_block_ids": [
+            "cdb8c8d333c4-docling-p0005-b0000",
+            "cdb8c8d333c4-docling-p0005-b0001",
+            "cdb8c8d333c4-docling-p0005-b0002",
+            "cdb8c8d333c4-docling-p0005-b0003"
+          ],
+          "content": "最適化への準備：変数（行動ルール）を定義しよう\n行動ルール（方策）は状態 𝑠 に応じて行動 𝑎 を返す存在\n方策 𝜋 ⋅ 𝑠 : 𝐴 → 0, 1 ：エージェントが状態 𝑠 で生成する行動が従う分布\n決定的な行動ルールも一般化できることに注意"
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "layout-early-agent-limitations",
+      "query": "What common limitations of early AI agents distinguish them from Agentic AI?",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "26e88259a6a24b4a136b9406765185f62804137510cb40a207dcde3fe26b1158",
+          "sample_id": "layout-001",
+          "page_start": 2,
+          "page_end": 2,
+          "content_type": "body_text",
+          "section_path": [
+            "1. Introduction"
+          ],
+          "source_block_ids": [
+            "bbf8a2258273-docling-p0002-b0005"
+          ],
+          "content": "However, across these diverse systems, early AI agents shared common limitations: they lacked self-learning, generative reasoning, and adaptability to unstructured or evolving environments. These shortcomings distinguish them from Agentic AI a recent paradigm that builds on deep learning, reinforcement learning, and foundation models to enable agents with contextual awareness, continuous learning, and emergent autonomy [22]."
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "layout-figure-two-dimensions",
+      "query": "Which key comparison dimensions are represented by the color-coded branches in Fig. 2?",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "f9f2b846e0df3cd5d74a2311a417ec57706791e23a2bf16a2d178f1d1fddbd51",
+          "sample_id": "layout-001",
+          "page_start": 3,
+          "page_end": 3,
+          "content_type": "figure_caption",
+          "section_path": [
+            "1. Introduction"
+          ],
+          "source_block_ids": [
+            "bbf8a2258273-docling-p0003-b0004"
+          ],
+          "content": "Fig. 2. Mind map of this research for exploring concepts, applications and challenges of AI Agents and Agentic AI. Each color-coded branch represents a key dimension of comparison: Architecture, Mechanisms, Scope/Complexity, Interaction, and Autonomy."
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "layout-search-platforms",
+      "query": "Which traditional academic databases and AI-powered platforms were used in the review's hybrid search methodology?",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-bbf8a22582738d49",
+          "chunk_fingerprint": "560c7ebffd23756ce189880634331aeb133eb558cb1aec32b18eeb0d77086a02",
+          "sample_id": "layout-001",
+          "page_start": 4,
+          "page_end": 4,
+          "content_type": "body_text",
+          "section_path": [
+            "1. Introduction",
+            "1.1. Methodology overview",
+            "1.1.1. Search strategy"
+          ],
+          "source_block_ids": [
+            "bbf8a2258273-docling-p0004-b0010",
+            "bbf8a2258273-docling-p0004-b0011",
+            "bbf8a2258273-docling-p0004-b0012"
+          ],
+          "content": "1.1.1. Search strategy\nTo develop this review, we implemented a hybrid search methodology combining traditional academic repositories and AI-enhanced literature discovery tools. Specifically, twelve platforms were queried: academic databases such as Google Scholar, IEEE Xplore, ACM Digital\nLibrary, Scopus, Web of Science, ScienceDirect, and arXiv; and AIpowered interfaces including ChatGPT, Perplexity.ai, DeepSeek, Hugging Face Search, and Grok. Search queries incorporated Boolean combinations of terms such as ''AI Agents'', ''Agentic AI'', ''LLM Agents'', ''Tool-augmented LLMs'', and ''Multi-Agent AI Systems''."
+        }
+      ],
+      "notes": "第 4 页合并片段列出全部 12 个平台，包括 7 个学术数据库和 5 个 AI 工具。"
+    },
+    {
+      "query_id": "scan-data-system-grouping",
+      "query": "为什么本书把数据库、消息队列和缓存统一归为“数据系统”？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "1e0d79a10e0f8bcb348326b0785bb8b7093af83fb8cb82810e5c2e4ed5d84901",
+          "sample_id": "scan-001",
+          "page_start": 2,
+          "page_end": 2,
+          "content_type": "body_text",
+          "section_path": [
+            "认识数据系统"
+          ],
+          "source_block_ids": [
+            "faa714221356-docling-p0002-b0004",
+            "faa714221356-docling-p0002-b0005",
+            "faa714221356-docling-p0002-b0006",
+            "faa714221356-docling-p0002-b0007",
+            "faa714221356-docling-p0002-b0008",
+            "faa714221356-docling-p0002-b0009",
+            "faa714221356-docling-p0002-b0010"
+          ],
+          "content": "认识数据系统\n我们通常将数据库、队列、高速缓存等视为不同类型的系统。虽然数据库和消息队列 存在某些相似性，例如两者都会保存数据（至少一段时间），但他们却有着截然不同 的访问模式，这就意味着不同的性能特征和设计实现。\n那么为什么本书将它们归为一大类即\"数据系统\"(data system）呢?\n首先，近年来出现了许多用于数据存储和处理的新工具。它们针对各种不同的应用场\n景进行优化，不适合再归为传统类型[1]。例如，Redis既可以用于数据存储也适用于消 息队列，ApacheKafka作为消息队列也具备了持久化存储保证。系统之间的界限正在 变得模糊。\n其次，越来越多的应用系统需求广泛，单个组件往往无法满足所有数据处理与存储需 求。因而需要将任务分解，每个组件负责高效完成其中一部分，多个组件依靠应用层 代码驱动有机衔接起来。\n举个例子，假定某个应用包含缓存层（例如Memcached）与全文索引服务器（如 Elasticsearch或Solr)，二者与主数据库保持关联，通常由应用代码负责缓存、索引与 主数据库之间的同步，如图1-1所示（具体技术将在后面的章节中详细介绍）。"
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "scan-fault-vs-failure",
+      "query": "故障（fault）与失效（failure）有什么区别？为什么通常需要容错机制？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "a1981f063c45d2b824d4a74e677f24bc3d0f2c256ff3a77ff23300caba6db210",
+          "sample_id": "scan-001",
+          "page_start": 4,
+          "page_end": 5,
+          "content_type": "body_text",
+          "section_path": [
+            "可靠性"
+          ],
+          "source_block_ids": [
+            "faa714221356-docling-p0004-b0018",
+            "faa714221356-docling-p0004-b0019",
+            "faa714221356-docling-p0005-b0000",
+            "faa714221356-docling-p0005-b0001",
+            "faa714221356-docling-p0005-b0002",
+            "faa714221356-docling-p0005-b0003"
+          ],
+          "content": "注意，故障与失效（failure）不完全一致[2]。故障通常被定义为组件偏离其正常规\n格，而失效意味系统作为一个整体停止，无法向用户提供所需的服务。我们不太可能 将故障概率降低到零，因此通常设计容错机制来避免从故障引发系统失效。本书将介 绍在不可靠组件基础上构建可靠性系统的相关技术。\n在这种容错系统中，用于测试目的，可以故意提高故障发生概率，例如通过随机杀死 某个进程，来确保系统仍保持健壮。很多关键的bug实际上正是由于错误处理不当而 造成的[3]。通过这种故意引发故障的方式，来持续检验、测试系统的容错机制，增加 对真实发生故障时应对的信心。Netflix的ChaosMonkey系统[4]就是这种测试的典型例\n子。\n虽然我们通常倾向于容忍故障而不是预防故障，但是也存在\"预防胜于治疗\"的情 况，安全问题就是一例，例如：如果攻击者破坏了系统并窃取了敏感数据，则该事件 造成的影响显然无法被撤销。然而，本书主要针对那些影响可以被消除的故障类型，\n接下来详细介绍。"
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "scan-disk-failure-frequency",
+      "query": "在包含 10000 个磁盘的存储集群中，平均预期多久会发生一次磁盘故障？",
+      "case_type": "answerable",
+      "review_status": "approved",
+      "relevant_chunks": [
+        {
+          "document_id": "pdf-faa7142213568a56",
+          "chunk_fingerprint": "f39417324d89c7e23796677ad802411f5075ff046ed5923078d6c37dc5154273",
+          "sample_id": "scan-001",
+          "page_start": 5,
+          "page_end": 5,
+          "content_type": "body_text",
+          "section_path": [
+            "硬件故障"
+          ],
+          "source_block_ids": [
+            "faa714221356-docling-p0005-b0004",
+            "faa714221356-docling-p0005-b0005",
+            "faa714221356-docling-p0005-b0006",
+            "faa714221356-docling-p0005-b0007",
+            "faa714221356-docling-p0005-b0008"
+          ],
+          "content": "硬件故障\n当我们考虑系统故障时，对于硬件故障总是很容易想到：硬盘崩溃，内存故障，电网 停电，甚至有人误拔掉了网线。任何与大型数据中心合作过的人都可以告诉你，当有 很多机器时，这类事情迟早会发生。\n有研究证明硬盘的平均无故障时间（MTTF）约为10～50年[5.6]。因此，在一个包括 10000个磁盘的存储集群中，我们应该预期平均每天有一个磁盘发生故障。\n我们的第一个反应通常是为硬件添加冗余来减少系统故障率。例如对磁盘配置 RAID，服务器配备双电源，甚至热插拔CPU，数据中心添加备用电源、发电机等。 当一个组件发生故障，冗余组件可以快速接管，之后再更换失效的组件。这种方法可 能并不能完全防止硬件故障所引发的失效，但还是被普遍采用，且在实际中也确实可 以让系统不间断运行长达数年。\n直到最近，采用硬件冗余方案对于大多数应用场景还是足够的，它使得单台机器完全 失效的概率降为非常低的水平。只要可以将备份迅速恢复到新机器上，故障的停机时 间在大多数应用中并不是灾难性的。而多机冗余则只对少量的关键应用更有意义，对 于这些应用，高可用性是绝对必要的。"
+        }
+      ],
+      "notes": "建议沿用 v1.0.0 对相同原文的相关性判断。"
+    },
+    {
+      "query_id": "diagnostic-unanswerable-native-learning-rate",
+      "query": "这份强化学习讲义建议将学习率 α 设置为多少？",
+      "case_type": "unanswerable",
+      "review_status": "approved",
+      "relevant_chunks": [],
+      "notes": "User confirmed that the fixed corpus contains no recommended learning-rate value."
+    },
+    {
+      "query_id": "diagnostic-unanswerable-layout-imagenet",
+      "query": "What top-1 ImageNet accuracy does the paper report for its proposed Agentic AI model?",
+      "case_type": "unanswerable",
+      "review_status": "approved",
+      "relevant_chunks": [],
+      "notes": "User confirmed that the review reports no ImageNet top-1 result for a proposed model."
+    },
+    {
+      "query_id": "diagnostic-ambiguous-system-characteristics",
+      "query": "这个系统最重要的特征是什么？",
+      "case_type": "ambiguous",
+      "review_status": "approved",
+      "relevant_chunks": [],
+      "notes": "User confirmed that the phrase 'this system' has no unique referent across the fixed corpus."
+    }
+  ]
+}
