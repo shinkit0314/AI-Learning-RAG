@@ -18,7 +18,7 @@ if not raw_test_url:
 
 test_url = require_test_database_url(raw_test_url)
 
-from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy import create_engine, event  # noqa: E402
 
 from ai_learning_rag.document_index import (  # noqa: E402
     DocumentGeneration,
@@ -134,6 +134,7 @@ def test_postgres_backend_replaces_and_searches_active_generation() -> None:
             generation_id=concurrent_generation.generation_id,
             chunk_fingerprint=_digest(f"chunk-{unique}-concurrent"),
             embedding_input_hash=_digest(f"input-{unique}-concurrent"),
+            content="Fig. 2 — comparison dimensions （POMDP）",
             vector=(0.0, 1.0),
         )
         published = index.replace_document(
@@ -164,7 +165,58 @@ def test_postgres_backend_replaces_and_searches_active_generation() -> None:
             (stale_record,),
             expected_revision=observed.revision,
         )
+        outside_generation = DocumentGeneration.create(
+            index_id=manifest.index_id,
+            document_id=f"outside-{unique}",
+            file_sha256=generation.file_sha256,
+            routing_profile=generation.routing_profile,
+            parser_profile=generation.parser_profile,
+            ocr_decision_fingerprint=generation.ocr_decision_fingerprint,
+            chunking_profile=generation.chunking_profile,
+            gate_profile=generation.gate_profile,
+            provenance_registry_fingerprint=generation.provenance_registry_fingerprint,
+        )
+        outside_record = replace(
+            record,
+            record_id=f"rec_{_digest(f'{unique}-outside')}",
+            generation_id=outside_generation.generation_id,
+            document_id=outside_generation.document_id,
+            content="Fig. 20 — different figure",
+        )
+        index.replace_document(outside_generation, (outside_record,), expected_revision=0)
         results = index.search(VectorSearchQuery(manifest.index_id, (0.0, 1.0), top_k=1))
+        query = VectorSearchQuery(manifest.index_id, (1.0, 0.0), top_k=1)
+        scoped = replace(query, document_id=generation.document_id)
+
+        assert [hit.record.record_id for hit in index.search(query)] == [outside_record.record_id]
+        assert [hit.record.record_id for hit in index.search(scoped)] == [
+            concurrent_record.record_id
+        ]
+        assert [hit.record.record_id for hit in index.search(replace(scoped, top_k=5))] == [
+            concurrent_record.record_id
+        ]
+        assert index.search(replace(scoped, document_id=f"unknown-{unique}")) == []
+
+        lexical = index.search_keywords("FIG. 2", index_id=manifest.index_id)
+        assert [hit.record.record_id for hit in lexical] == [
+            concurrent_record.record_id,
+            outside_record.record_id,
+        ]
+        assert [
+            hit.record.record_id
+            for hit in index.search_keywords(
+                "POMDP", index_id=manifest.index_id, document_id=generation.document_id
+            )
+        ] == [concurrent_record.record_id]
+        assert (
+            index.search_keywords(
+                "POMDP", index_id=manifest.index_id, document_id=outside_generation.document_id
+            )
+            == []
+        )
+        assert index.search_keywords("stores", index_id=manifest.index_id) == []
+        assert index.search_keywords("?!", index_id=manifest.index_id) == []
+        assert index.search_keywords("no_such_term", index_id=manifest.index_id) == []
 
         assert first.status is DocumentReplaceStatus.INSERTED
         assert first.document_revision == 1
@@ -176,6 +228,32 @@ def test_postgres_backend_replaces_and_searches_active_generation() -> None:
         assert conflict.document_revision == 2
         assert results[0].record.record_id == concurrent_record.record_id
         assert results[0].score == pytest.approx(1.0)
+
+        hybrid = index.search_hybrid(scoped, "Fig. 2")
+        assert [hit.record.record_id for hit in hybrid.vector_candidates] == [
+            concurrent_record.record_id
+        ]
+        assert [hit.record.record_id for hit in hybrid.keyword_candidates] == [
+            concurrent_record.record_id
+        ]
+        assert [hit.record.record_id for hit in hybrid.hits] == [concurrent_record.record_id]
+        assert hybrid.hits[0].score == pytest.approx(2 / 61)
+
+        def publish_between_lanes(_conn, _cursor, statement, _params, _context, _many):
+            if "WITH query_terms AS" in statement:
+                publication = index.replace_document(
+                    stale_generation, (stale_record,), expected_revision=2
+                )
+                assert publication.status is DocumentReplaceStatus.REPLACED
+
+        event.listen(engine, "before_cursor_execute", publish_between_lanes)
+        try:
+            during_publication = index.search_hybrid(scoped, "Fig. 2")
+        finally:
+            event.remove(engine, "before_cursor_execute", publish_between_lanes)
+        assert during_publication.hits == hybrid.hits
+        assert during_publication.keyword_candidates == hybrid.keyword_candidates
+        assert index.search(scoped)[0].record.record_id == stale_record.record_id
     finally:
         engine.dispose()
 

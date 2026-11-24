@@ -39,8 +39,11 @@ page/block/bbox Citation，自动检查与真实模型人工验收均已通过�
 `develop`。阶段 5.1 已建立检索评估基线：15 个可回答问题、2 个不可回答问题和 1 个含糊问题
 已经逐题完成人工 Chunk 相关性审核，并与固定的 87-Chunk 语料快照绑定。真实
 Qwen/PostgreSQL 基线 `v1.0.0` 及自动质量门禁已经通过人工验收，并经 PR #11 合入 `develop`。
-当前阶段 5.2 已完成 5.1 基线复跑、Embedding 指令对照和 600 与 1,000 字符切分对照。
-5.2 已通过人工验收，确认保留 v1.0.0 基线。实验报告和取舍见[阶段 5.2 设计文档](docs/design/05-02-retrieval-quality-experiments.md)。详细阶段顺序见
+5.2 已完成基线复跑、Embedding 指令对照与切分对照，通过人工验收并经 PR #24 合入 `develop`。
+实验报告和取舍见[阶段 5.2 设计文档](docs/design/05-02-retrieval-quality-experiments.md)。
+5.3 元数据过滤与混合检索已通过自动检查和人工验收，待合入 `develop`。Fig. 2 的显式文档过滤通过，
+首轮混合候选未达到逐题质量门槛。精确向量检索继续作为默认和 5.4 的质量对照。对照与验收见
+[阶段 5.3 设计文档](docs/design/05-03-hybrid-retrieval.md)。详细阶段顺序见
 [整体开发路线图](docs/DEVELOPMENT_ROADMAP.md)，
 阶段 4.1 的已确认数据模型、事务边界和验收标准见
 [阶段 4.1 设计文档](docs/design/04-01-pdf-chunk-indexing.md)，阶段 5.1 的评测边界和验收标准见

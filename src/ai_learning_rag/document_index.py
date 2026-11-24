@@ -332,21 +332,24 @@ class VectorRecord:
 
 @dataclass(frozen=True, slots=True)
 class VectorSearchQuery:
-    """Exact-search request scoped to one active embedding space."""
+    """Exact-search request within an active index and optional document."""
 
     index_id: str
     vector: tuple[float, ...]
     top_k: int = 5
+    document_id: str | None = None
 
     def __post_init__(self) -> None:
         _require_text(self.index_id, label="index_id")
+        if self.document_id is not None:
+            _require_text(self.document_id, label="document_id")
         if self.top_k <= 0:
             raise ValueError("top_k must be greater than zero")
 
 
 @dataclass(frozen=True, slots=True)
 class SearchResult:
-    """One retrieved record and its cosine similarity score."""
+    """One retrieved record and its score within the active retrieval mode."""
 
     record: VectorRecord
     score: float
@@ -561,8 +564,9 @@ class InMemoryVectorIndex:
 
         active_generation_ids = {
             generation_id
-            for (index_id, _document_id), generation_id in self._active_generation_ids.items()
+            for (index_id, document_id), generation_id in self._active_generation_ids.items()
             if index_id == query.index_id
+            and (query.document_id is None or document_id == query.document_id)
         }
         results = [
             SearchResult(record=record, score=cosine_similarity(query.vector, record.vector))

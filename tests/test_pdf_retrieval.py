@@ -1,6 +1,7 @@
 """Tests for the natural-language PDF retrieval adapter."""
 
 from dataclasses import replace
+from unittest.mock import Mock
 
 import pytest
 
@@ -8,6 +9,7 @@ from ai_learning_rag.document_index import (
     IndexStatus,
     InMemoryVectorIndex,
     VectorIndexManifest,
+    VectorSearchQuery,
 )
 from ai_learning_rag.embedding import EmbeddingConfig
 from ai_learning_rag.pdf_retrieval import PdfRetriever, QueryTooLongError
@@ -74,20 +76,40 @@ def active_index(manifest: VectorIndexManifest) -> InMemoryVectorIndex:
     return index
 
 
-def test_retriever_builds_document_search_query_from_natural_language() -> None:
+@pytest.mark.parametrize("document_id", [None, "pdf-selected"])
+def test_retriever_builds_document_search_query_from_natural_language(
+    document_id: str | None,
+) -> None:
     manifest = make_manifest()
     embedder = FakeEmbedder()
+    index = Mock(spec=InMemoryVectorIndex, wraps=active_index(manifest))
     retriever = PdfRetriever(
-        index=active_index(manifest),
+        index=index,
         manifest=manifest,
         embedder=embedder,
     )
 
-    results = retriever.search("什么是可维护性？", top_k=3)
+    results = retriever.search("什么是可维护性？", top_k=3, document_id=document_id)
 
     assert results == []
+    search_query = index.search.call_args.args[0]
+    assert isinstance(search_query, VectorSearchQuery)
+    assert search_query.document_id == document_id
+    assert search_query.top_k == 3
     assert embedder.counted == ["什么是可维护性？"]
     assert embedder.embedded == ["什么是可维护性？"]
+
+
+def test_retriever_rejects_blank_document_scope_before_embedding() -> None:
+    manifest = make_manifest()
+    embedder = FakeEmbedder()
+    retriever = PdfRetriever(index=active_index(manifest), manifest=manifest, embedder=embedder)
+
+    with pytest.raises(ValueError, match="document_id must not be blank"):
+        retriever.search("Valid question", document_id=" ")
+
+    assert embedder.counted == []
+    assert embedder.embedded == []
 
 
 @pytest.mark.parametrize("query", ["", "   "])
