@@ -47,13 +47,32 @@ class PdfRetriever:
         self._embedder = embedder
         _validate_embedding_compatibility(manifest, embedder)
 
-    def search(self, query: str, *, top_k: int = 5) -> list[SearchResult]:
-        """Embed a complete question and search the configured active PDF index."""
+    def search(
+        self,
+        query: str,
+        *,
+        top_k: int = 5,
+        document_id: str | None = None,
+    ) -> list[SearchResult]:
+        """Embed a complete question and optionally limit search to one PDF."""
+
+        return self._index.search(self.prepare_search(query, top_k=top_k, document_id=document_id))
+
+    def prepare_search(
+        self,
+        query: str,
+        *,
+        top_k: int = 5,
+        document_id: str | None = None,
+    ) -> VectorSearchQuery:
+        """Validate and encode a PDF query for exact or explicit hybrid retrieval."""
 
         if not query.strip():
             raise ValueError("query must not be blank")
         if top_k <= 0:
             raise ValueError("top_k must be greater than zero")
+        if document_id is not None and not document_id.strip():
+            raise ValueError("document_id must not be blank")
 
         stored_manifest = self._index.get_manifest(self._manifest.index_id)
         if stored_manifest is None:
@@ -72,13 +91,11 @@ class PdfRetriever:
                 f"{self._manifest.max_input_tokens}-token index limit"
             )
 
-        vector = tuple(self._embedder.embed_query(query))
-        return self._index.search(
-            VectorSearchQuery(
-                index_id=self._manifest.index_id,
-                vector=vector,
-                top_k=top_k,
-            )
+        return VectorSearchQuery(
+            index_id=self._manifest.index_id,
+            vector=tuple(self._embedder.embed_query(query)),
+            top_k=top_k,
+            document_id=document_id,
         )
 
 

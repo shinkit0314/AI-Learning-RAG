@@ -199,6 +199,29 @@ def test_invalid_candidate_cannot_partially_replace_the_active_generation() -> N
     assert index.get_active_generation(manifest.index_id, first.document_id) == first
 
 
+def test_search_limits_to_the_selected_active_document_before_top_k() -> None:
+    index = InMemoryVectorIndex()
+    manifest = make_manifest()
+    activate(index, manifest)
+
+    old = make_generation(manifest)
+    active = make_generation(manifest, file_marker="updated")
+    outside = make_generation(manifest, document_id="document-b")
+    old_record = make_record(old, record_id="old", vector=(1.0, 0.0))
+    active_record = make_record(active, record_id="active", vector=(0.0, 1.0))
+    outside_record = make_record(outside, record_id="outside", vector=(1.0, 0.0))
+    index.replace_document(old, (old_record,), expected_revision=0)
+    index.replace_document(active, (active_record,), expected_revision=1)
+    index.replace_document(outside, (outside_record,), expected_revision=0)
+
+    query = VectorSearchQuery(manifest.index_id, (1.0, 0.0), top_k=1)
+    assert [hit.record for hit in index.search(query)] == [outside_record]
+    scoped = replace(query, document_id=active.document_id)
+    assert [hit.record for hit in index.search(scoped)] == [active_record]
+    assert [hit.record for hit in index.search(replace(scoped, top_k=5))] == [active_record]
+    assert index.search(replace(scoped, document_id="missing")) == []
+
+
 def test_search_uses_record_id_as_a_deterministic_tie_breaker() -> None:
     """Stable ordering keeps previews and regression checks reproducible."""
 

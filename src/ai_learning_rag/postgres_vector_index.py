@@ -1,5 +1,6 @@
 """PostgreSQL/pgvector implementation of the document-level index contract."""
 
+from dataclasses import replace
 from math import isfinite
 from re import findall
 from typing import Any
@@ -17,6 +18,11 @@ from ai_learning_rag.document_index import (
     VectorRecord,
     VectorSearchQuery,
 )
+from ai_learning_rag.hybrid_ranking import (
+    HYBRID_CANDIDATE_LIMIT,
+    HybridSearchResult,
+    fuse_rankings,
+)
 
 _ALLOWED_TRANSITIONS = {
     IndexStatus.BUILDING: {IndexStatus.BUILDING, IndexStatus.READY, IndexStatus.FAILED},
@@ -25,6 +31,51 @@ _ALLOWED_TRANSITIONS = {
     IndexStatus.FAILED: {IndexStatus.FAILED},
     IndexStatus.RETIRED: {IndexStatus.RETIRED},
 }
+
+_SEARCH_RECORD_COLUMNS = """
+    vr.record_id, vr.index_id, vr.generation_id, vr.document_id,
+    vr.chunk_fingerprint, vr.chunk_index, vr.content,
+    vr.content_type, vr.section_path, vr.page_start, vr.page_end,
+    vr.embedding_input_hash, vr.embedding_input_token_count,
+    vr.embedding::text AS embedding_text, vr.provenance, vr.provenance_schema_version
+"""
+_ACTIVE_SEARCH_RECORDS = """
+    FROM rag.vector_records AS vr
+    JOIN rag.indexed_documents AS doc
+      ON doc.index_id = vr.index_id
+     AND doc.document_id = vr.document_id
+     AND doc.active_generation_id = vr.generation_id
+"""
+_SEARCH_SCOPE = """
+    vr.index_id = :index_id
+    AND vr.embedding_dimension = :embedding_dimension
+    AND (CAST(:document_id AS text) IS NULL OR vr.document_id = :document_id)
+"""
+_VECTOR_SEARCH = text(
+    f"""
+    SELECT {_SEARCH_RECORD_COLUMNS},
+           1 - (vr.embedding <=> CAST(:query_vector AS vector)) AS score
+    {_ACTIVE_SEARCH_RECORDS}
+    WHERE {_SEARCH_SCOPE}
+    ORDER BY vr.embedding <=> CAST(:query_vector AS vector) ASC, vr.record_id ASC
+    LIMIT :top_k
+    """
+)
+_KEYWORD_SEARCH = text(
+    f"""
+    WITH query_terms AS (
+        SELECT CAST(string_agg(array_to_tsvector(ARRAY[term])::text, ' | ') AS tsquery) AS query
+        FROM unnest(tsvector_to_array(to_tsvector('pg_catalog.simple', :query_text))) AS t(term)
+    )
+    SELECT {_SEARCH_RECORD_COLUMNS}, ts_rank_cd(words.document, query_terms.query) AS score
+    {_ACTIVE_SEARCH_RECORDS}
+    CROSS JOIN query_terms
+    CROSS JOIN LATERAL (SELECT to_tsvector('pg_catalog.simple', vr.content) AS document) AS words
+    WHERE {_SEARCH_SCOPE} AND words.document @@ query_terms.query
+    ORDER BY score DESC, vr.record_id ASC
+    LIMIT :top_k
+    """
+)
 
 
 class PostgresVectorIndex:
@@ -37,22 +88,7 @@ class PostgresVectorIndex:
         """Return current immutable identity and publish state."""
 
         with self._engine.connect() as connection:
-            row = (
-                connection.execute(
-                    text(
-                        """
-                        SELECT index_id, logical_name, embedding_dimension, identity,
-                               audit_metadata, required_pgvector_version, status
-                        FROM rag.vector_indexes
-                        WHERE index_id = :index_id
-                        """
-                    ),
-                    {"index_id": index_id},
-                )
-                .mappings()
-                .one_or_none()
-            )
-        return None if row is None else _manifest_from_row(row)
+            return _read_manifest(connection, index_id)
 
     def ensure_index(self, manifest: VectorIndexManifest) -> None:
         """Create a building manifest or apply an atomic publish transition."""
@@ -368,66 +404,106 @@ class PostgresVectorIndex:
         """Use exact cosine distance over active generations in one active index."""
 
         with self._engine.connect() as connection:
-            manifest_row = (
-                connection.execute(
-                    text(
-                        """
-                    SELECT index_id, logical_name, embedding_dimension, identity,
-                           audit_metadata, required_pgvector_version, status
-                    FROM rag.vector_indexes
-                    WHERE index_id = :index_id
-                    """
-                    ),
-                    {"index_id": query.index_id},
-                )
-                .mappings()
-                .one_or_none()
-            )
-            if manifest_row is None:
-                raise ValueError("query references an unknown index")
-            manifest = _manifest_from_row(manifest_row)
-            if manifest.status is not IndexStatus.ACTIVE:
-                raise ValueError("query index must be active")
-            _validate_vector(query.vector, manifest.embedding_dimension, label="query vector")
-            query_literal = _vector_literal(query.vector)
+            manifest = _require_active_manifest(connection, query.index_id)
+            return _search_vectors(connection, manifest, query)
 
-            rows = (
-                connection.execute(
-                    text(
-                        """
-                    SELECT vr.record_id, vr.index_id, vr.generation_id, vr.document_id,
-                           vr.chunk_fingerprint, vr.chunk_index, vr.content,
-                           vr.content_type, vr.section_path, vr.page_start, vr.page_end,
-                           vr.embedding_input_hash, vr.embedding_input_token_count,
-                           vr.embedding::text AS embedding_text,
-                           vr.provenance, vr.provenance_schema_version,
-                           1 - (vr.embedding <=> CAST(:query_vector AS vector)) AS score
-                    FROM rag.vector_records AS vr
-                    JOIN rag.indexed_documents AS doc
-                      ON doc.index_id = vr.index_id
-                     AND doc.document_id = vr.document_id
-                     AND doc.active_generation_id = vr.generation_id
-                    WHERE vr.index_id = :index_id
-                      AND vr.embedding_dimension = :embedding_dimension
-                    ORDER BY vr.embedding <=> CAST(:query_vector AS vector) ASC,
-                             vr.record_id ASC
-                    LIMIT :top_k
-                    """
-                    ),
-                    {
-                        "query_vector": query_literal,
-                        "index_id": query.index_id,
-                        "embedding_dimension": manifest.embedding_dimension,
-                        "top_k": query.top_k,
-                    },
-                )
-                .mappings()
-                .all()
-            )
+    def search_keywords(
+        self,
+        query: str,
+        *,
+        index_id: str,
+        top_k: int = 5,
+        document_id: str | None = None,
+    ) -> list[SearchResult]:
+        """Rank active records matching at least one PostgreSQL text-search term."""
 
-        return [
-            SearchResult(record=_record_from_row(row), score=float(row["score"])) for row in rows
-        ]
+        if top_k <= 0:
+            raise ValueError("top_k must be greater than zero")
+        if document_id is not None and not document_id.strip():
+            raise ValueError("document_id must not be blank")
+        with self._engine.connect() as connection:
+            manifest = _require_active_manifest(connection, index_id)
+            return _search_keywords(connection, manifest, query, top_k, document_id)
+
+    def search_hybrid(self, query: VectorSearchQuery, query_text: str) -> HybridSearchResult:
+        """Fuse both scoped rankings from one consistent active-generation snapshot."""
+
+        with self._engine.connect().execution_options(
+            isolation_level="REPEATABLE READ"
+        ) as connection:
+            manifest = _require_active_manifest(connection, query.index_id)
+            vectors = _search_vectors(
+                connection, manifest, replace(query, top_k=HYBRID_CANDIDATE_LIMIT)
+            )
+            keywords = _search_keywords(
+                connection, manifest, query_text, HYBRID_CANDIDATE_LIMIT, query.document_id
+            )
+        return fuse_rankings(vectors, keywords, top_k=query.top_k)
+
+
+def _read_manifest(connection: Connection, index_id: str) -> VectorIndexManifest | None:
+    row = (
+        connection.execute(
+            text(
+                """
+                SELECT index_id, logical_name, embedding_dimension, identity,
+                       audit_metadata, required_pgvector_version, status
+                FROM rag.vector_indexes
+                WHERE index_id = :index_id
+                """
+            ),
+            {"index_id": index_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    return None if row is None else _manifest_from_row(row)
+
+
+def _require_active_manifest(connection: Connection, index_id: str) -> VectorIndexManifest:
+    manifest = _read_manifest(connection, index_id)
+    if manifest is None:
+        raise ValueError("query references an unknown index")
+    if manifest.status is not IndexStatus.ACTIVE:
+        raise ValueError("query index must be active")
+    return manifest
+
+
+def _search_vectors(
+    connection: Connection, manifest: VectorIndexManifest, query: VectorSearchQuery
+) -> list[SearchResult]:
+    _validate_vector(query.vector, manifest.embedding_dimension, label="query vector")
+    rows = connection.execute(
+        _VECTOR_SEARCH,
+        {
+            "query_vector": _vector_literal(query.vector),
+            "index_id": manifest.index_id,
+            "embedding_dimension": manifest.embedding_dimension,
+            "document_id": query.document_id,
+            "top_k": query.top_k,
+        },
+    ).mappings()
+    return [SearchResult(_record_from_row(row), float(row["score"])) for row in rows]
+
+
+def _search_keywords(
+    connection: Connection,
+    manifest: VectorIndexManifest,
+    query: str,
+    top_k: int,
+    document_id: str | None,
+) -> list[SearchResult]:
+    rows = connection.execute(
+        _KEYWORD_SEARCH,
+        {
+            "query_text": query,
+            "index_id": manifest.index_id,
+            "embedding_dimension": manifest.embedding_dimension,
+            "document_id": document_id,
+            "top_k": top_k,
+        },
+    ).mappings()
+    return [SearchResult(_record_from_row(row), float(row["score"])) for row in rows]
 
 
 def _record_from_row(row: Any) -> VectorRecord:
